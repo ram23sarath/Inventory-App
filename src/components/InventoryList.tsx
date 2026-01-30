@@ -4,21 +4,11 @@ import { Header } from "./Header";
 import { AddItemForm } from "./AddItemForm";
 import { ItemRow } from "./ItemRow";
 import { EmptyState } from "./EmptyState";
-import { TotalBar } from "./TotalBar";
 import { Spinner } from "./Spinner";
 
 export function InventoryList() {
-  const {
-    items,
-    isLoading,
-    error,
-    isOnline,
-    pendingCount,
-    addItem,
-    updateItem,
-    deleteItem,
-    retrySync,
-  } = useItems();
+  const { items, isLoading, error, addItem, updateItem, deleteItem } =
+    useItems();
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [section, setSection] = useState<"income" | "expenses">("income");
@@ -54,20 +44,6 @@ export function InventoryList() {
   const sectionItems = items.filter(
     (item) => item.section === section && item.item_date === selectedDate,
   );
-
-  // Group all items by date for the View mode
-  const groupedByDate = items
-    .filter((item) => item.section === section)
-    .reduce(
-      (acc, item) => {
-        if (!acc[item.item_date]) {
-          acc[item.item_date] = [];
-        }
-        acc[item.item_date].push(item);
-        return acc;
-      },
-      {} as Record<string, typeof items>,
-    );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-24 flex flex-col">
