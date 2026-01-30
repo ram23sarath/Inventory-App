@@ -69,8 +69,6 @@ export function InventoryList() {
       {} as Record<string, typeof items>,
     );
 
-  const sortedDates = Object.keys(groupedByDate).sort().reverse();
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-24 flex flex-col">
       <Header />
