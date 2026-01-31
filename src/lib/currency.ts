@@ -10,7 +10,7 @@ export function detectCurrency(): CurrencyOptions {
   const currencyMap: Record<string, { currency: string; symbol: string }> = {
     'en-IN': { currency: 'INR', symbol: '₹' },
     'hi-IN': { currency: 'INR', symbol: '₹' },
-    'en-US': { currency: 'USD', symbol: '$' },
+    'en-US': { currency: 'INR', symbol: '₹' },
     'en-GB': { currency: 'GBP', symbol: '£' },
     'de-DE': { currency: 'EUR', symbol: '€' },
     'fr-FR': { currency: 'EUR', symbol: '€' },
@@ -33,8 +33,8 @@ export function detectCurrency(): CurrencyOptions {
     return { locale, ...prefixMatch[1] };
   }
 
-  // Default to USD
-  return { locale, currency: 'USD', symbol: '$' };
+  // Default to INR
+  return { locale, currency: 'INR', symbol: '₹' };
 }
 
 /**
@@ -92,7 +92,7 @@ export function formatCurrency(cents: number, options?: Partial<CurrencyOptions>
     }).format(centsToDollars(cents));
   } catch {
     // Fallback formatting
-    const symbol = options?.symbol || '$';
+    const symbol = options?.symbol || '₹';
     return `${symbol}${centsToDollars(cents).toFixed(2)}`;
   }
 }

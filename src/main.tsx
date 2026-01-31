@@ -3,21 +3,14 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 
-// Prevent zoom on input focus for better mobile experience
+// Prevent pinch zoom on iOS Safari while allowing scroll
 document.addEventListener(
-  "touchmove",
+  "gesturestart",
   (e) => {
-    if (
-      (e.target as HTMLElement).tagName !== "INPUT" &&
-      (e.target as HTMLElement).tagName !== "TEXTAREA" &&
-      (e.target as HTMLElement).tagName !== "SELECT"
-    ) {
-      // Allow normal scroll
-    }
+    e.preventDefault();
   },
-  { passive: true },
+  { passive: false },
 );
-
 // Register service worker for PWA
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -27,16 +20,17 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-// Prevent pull-to-refresh on Android
-document.body.addEventListener(
-  "touchmove",
-  (e) => {
-    if ((e as TouchEvent).touches.length > 1 || (e as any).scale !== 1) {
-      e.preventDefault();
-    }
-  },
-  { passive: false },
-);
+// Block multi-touch gestures to prevent pinch/zoom on Android
+const onTouchMove = (e: TouchEvent) => {
+  // Only prevent if multi-touch or pinch
+  if (e.touches.length > 1) {
+    e.preventDefault();
+  }
+};
+
+document.addEventListener("touchmove", onTouchMove as EventListener, {
+  passive: false,
+});
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

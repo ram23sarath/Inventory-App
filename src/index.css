@@ -14,6 +14,23 @@
   html {
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
+    /* Ensure body can scroll */
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Enable smooth scrolling, respecting user motion preferences */
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
+  /* Fallback for users who prefer reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
   }
 
   body {
@@ -21,11 +38,18 @@
     padding-top: var(--safe-area-inset-top);
     padding-left: var(--safe-area-inset-left);
     padding-right: var(--safe-area-inset-right);
+    /* Enable scrolling on body and all children */
+    width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    position: relative;
   }
 
   /* Prevent iOS zoom on input focus */
   input, select, textarea {
     font-size: 16px !important;
+    -webkit-user-select: text;
+    user-select: text;
   }
 
   /* Dark mode */
@@ -120,7 +144,41 @@
 }
 
 @layer utilities {
-  /* Hide scrollbar but allow scrolling */
+  /* Dialog animations */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in,
+    .animate-scale-in {
+      animation: none;
+    }
+  }  /* Hide scrollbar but allow scrolling */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;

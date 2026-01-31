@@ -77,13 +77,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
     });
 
-    if (error) {
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        error: error.message,
-      }));
-    }
+    setState((prev) => ({
+      ...prev,
+      isLoading: false,
+      error: error ? error.message : null,
+    }));
 
     return { error };
   }, []);
@@ -96,13 +94,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
     });
 
-    if (error) {
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        error: error.message,
-      }));
-    }
+    setState((prev) => ({
+      ...prev,
+      isLoading: false,
+      error: error ? error.message : null,
+    }));
 
     return { error };
   }, []);
