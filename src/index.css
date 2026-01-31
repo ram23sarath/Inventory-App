@@ -34,7 +34,7 @@
   }
 
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-gray-50 text-gray-800 antialiased;
     padding-top: var(--safe-area-inset-top);
     padding-left: var(--safe-area-inset-left);
     padding-right: var(--safe-area-inset-right);
@@ -101,7 +101,7 @@
   .input {
     @apply w-full min-h-touch px-4 py-3 rounded-lg
            bg-white border border-gray-300
-           text-gray-900 placeholder-gray-500
+           text-gray-900 placeholder-gray-600
            text-base-mobile
            focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
            disabled:bg-gray-100 disabled:cursor-not-allowed

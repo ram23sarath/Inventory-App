@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -7,6 +7,7 @@ export function Header() {
   const { user, signOut } = useAuth();
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const handleSignOutClick = () => {
     setShowConfirmDialog(true);
@@ -25,6 +26,48 @@ export function Header() {
     }
   };
 
+  const handleCloseDialog = useCallback(() => {
+    setShowConfirmDialog(false);
+    setSignOutError(null);
+  }, []);
+
+  // Handle escape key and focus trap
+  useEffect(() => {
+    if (!showConfirmDialog) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        handleCloseDialog();
+      } else if (e.key === "Tab") {
+        const focusableElements =
+          dialogRef.current?.querySelectorAll<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+          );
+        if (!focusableElements || focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey && document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement.focus();
+        } else if (!e.shiftKey && document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement.focus();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    // Focus first focusable element in dialog
+    const focusableElements = dialogRef.current?.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    focusableElements?.[0]?.focus();
+
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showConfirmDialog, handleCloseDialog]);
   const cycleTheme = () => {
     const themes: Array<"light" | "dark" | "system"> = [
       "light",
@@ -162,9 +205,23 @@ export function Header() {
 
         {/* Confirmation Dialog */}
         {showConfirmDialog && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-sm mx-4 animate-scale-in">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in"
+            onClick={handleCloseDialog}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="signout-dialog-title"
+            data-testid="dialog-backdrop"
+          >
+            <div
+              ref={dialogRef}
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-sm mx-4 animate-scale-in"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2
+                id="signout-dialog-title"
+                className="text-lg font-semibold text-gray-900 dark:text-white mb-2"
+              >
                 Sign Out
               </h2>
               <p className="text-gray-600 dark:text-gray-400 mb-6">
@@ -178,7 +235,7 @@ export function Header() {
               )}
               <div className="flex gap-3 justify-end">
                 <button
-                  onClick={() => setShowConfirmDialog(false)}
+                  onClick={handleCloseDialog}
                   className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors active:scale-95 active:transition-transform"
                 >
                   Cancel
