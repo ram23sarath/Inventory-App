@@ -26,13 +26,14 @@ const PREDEFINED_ITEMS = [
   "A1 Snacks",
   "Ginger",
   "Pesulu",
-  "Fuel",
-  "Packing Covers",
   "Chilli",
   "Curd",
   "Milk",
   "Others",
 ];
+
+// Items only available in expenses section
+const EXPENSES_ONLY_ITEMS = ["Fuel", "Packing Covers"];
 
 export function AddItemForm({
   onAdd,
@@ -147,6 +148,12 @@ export function AddItemForm({
                   {item}
                 </option>
               ))}
+              {section === "expenses" &&
+                EXPENSES_ONLY_ITEMS.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
               <option value="__custom__">+ Add Custom Name</option>
             </select>
             {nameError && (
