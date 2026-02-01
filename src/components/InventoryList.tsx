@@ -214,6 +214,40 @@ export function InventoryList() {
         {/* VIEW ALL MODE */}
         {viewMode === "view" && (
           <>
+            {/* Net Total Card */}
+            {(() => {
+              const totalIncome = items
+                .filter((item) => item.section === "income")
+                .reduce((sum, item) => sum + item.price_cents, 0);
+              const totalExpenses = items
+                .filter((item) => item.section === "expenses")
+                .reduce((sum, item) => sum + item.price_cents, 0);
+              const netTotal = totalIncome - totalExpenses;
+              const isPositive = netTotal >= 0;
+
+              return (
+                <div className="mx-4 mt-4 p-4 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm opacity-80">
+                        Net Total (Income - Expenses)
+                      </p>
+                      <p
+                        className={`text-2xl font-bold ${isPositive ? "text-green-200" : "text-red-200"}`}
+                      >
+                        {isPositive ? "+" : "-"}₹
+                        {Math.abs(netTotal / 100).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="text-right text-sm opacity-80">
+                      <p>Income: ₹{(totalIncome / 100).toFixed(2)}</p>
+                      <p>Expenses: ₹{(totalExpenses / 100).toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Section Title */}
             <div className="mx-4 mt-4">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
