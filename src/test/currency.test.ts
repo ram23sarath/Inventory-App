@@ -74,15 +74,15 @@ describe('Currency Utils', () => {
   });
 
   describe('formatCurrency', () => {
-    it('formats cents as currency string', () => {
+    it('formats cents as Indian Rupee currency string', () => {
       const result = formatCurrency(1999);
-      // Should contain 19.99 regardless of locale
-      expect(result).toMatch(/19[.,]99/);
+      // Should be formatted as Indian Rupee
+      expect(result).toBe('₹19.99');
     });
 
     it('handles zero correctly', () => {
       const result = formatCurrency(0);
-      expect(result).toMatch(/0[.,]00/);
+      expect(result).toBe('₹0.00');
     });
   });
 

@@ -1,40 +1,10 @@
 import type { CurrencyOptions } from '@/types';
 
 /**
- * Detect user's currency based on browser locale
+ * Get currency options - always Indian Rupee
  */
-export function detectCurrency(): CurrencyOptions {
-  const locale = navigator.language || 'en-US';
-  
-  // Map common locales to currencies
-  const currencyMap: Record<string, { currency: string; symbol: string }> = {
-    'en-IN': { currency: 'INR', symbol: '₹' },
-    'hi-IN': { currency: 'INR', symbol: '₹' },
-    'en-US': { currency: 'INR', symbol: '₹' },
-    'en-GB': { currency: 'GBP', symbol: '£' },
-    'de-DE': { currency: 'EUR', symbol: '€' },
-    'fr-FR': { currency: 'EUR', symbol: '€' },
-    'ja-JP': { currency: 'JPY', symbol: '¥' },
-    'zh-CN': { currency: 'CNY', symbol: '¥' },
-  };
-
-  // Check if locale has a direct match
-  if (currencyMap[locale]) {
-    return { locale, ...currencyMap[locale] };
-  }
-
-  // Check language prefix
-  const langPrefix = locale.split('-')[0];
-  const prefixMatch = Object.entries(currencyMap).find(([key]) => 
-    key.startsWith(langPrefix + '-')
-  );
-
-  if (prefixMatch) {
-    return { locale, ...prefixMatch[1] };
-  }
-
-  // Default to INR
-  return { locale, currency: 'INR', symbol: '₹' };
+export function getCurrencyOptions(): CurrencyOptions {
+  return { locale: 'en-IN', currency: 'INR', symbol: '₹' };
 }
 
 /**
@@ -78,23 +48,15 @@ export function parsePriceToCents(priceString: string): number | null {
 }
 
 /**
- * Format cents as currency string
+ * Format cents as currency string (Indian Rupee)
  */
-export function formatCurrency(cents: number, options?: Partial<CurrencyOptions>): string {
-  const { locale, currency } = { ...detectCurrency(), ...options };
-  
-  try {
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(centsToDollars(cents));
-  } catch {
-    // Fallback formatting
-    const symbol = options?.symbol || '₹';
-    return `${symbol}${centsToDollars(cents).toFixed(2)}`;
-  }
+export function formatCurrency(cents: number): string {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(centsToDollars(cents));
 }
 
 /**

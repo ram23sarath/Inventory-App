@@ -24,6 +24,13 @@ const PREDEFINED_ITEMS = [
   "Popcorn",
   "Groundnuts",
   "A1 Snacks",
+  "Ginger",
+  "Pesulu",
+  "Fuel",
+  "Packing Covers",
+  "Chilli",
+  "Curd",
+  "Milk",
   "Others",
 ];
 
