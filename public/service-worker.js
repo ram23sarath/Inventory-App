@@ -1,5 +1,5 @@
 // Service Worker for offline functionality
-const CACHE_NAME = 'inventory-app-v1';
+const CACHE_NAME = 'inventory-app-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -36,7 +36,9 @@ self.addEventListener('fetch', (event) => {
 
         // Cache the response
         caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseClone);
+          cache.put(event.request, responseClone).catch((err) => {
+            console.error('Cache put failed:', CACHE_NAME, event.request.url, err);
+          });
         });
 
         return response;
