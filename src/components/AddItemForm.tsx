@@ -223,7 +223,7 @@ export function AddItemForm({
                 setNameError(null);
               }}
               disabled={isSubmitting}
-              className="px-3 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md text-sm font-medium transition-colors"
+              className="min-h-touch min-w-touch px-3 py-2.5 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md text-sm font-medium transition-colors"
               aria-label="Cancel custom name"
             >
               Cancel

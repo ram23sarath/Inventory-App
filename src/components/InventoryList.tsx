@@ -53,15 +53,15 @@ export function InventoryList() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-24 flex flex-col overflow-x-hidden">
+    <div className="min-h-screen w-full max-w-full bg-gray-50 dark:bg-gray-900 pb-24 flex flex-col overflow-x-hidden">
       <Header />
 
       {/* View Mode Toggle - at the very top */}
-      <div className="max-w-2xl mx-auto mt-4 px-4">
+      <div className="max-w-2xl mx-auto w-full mt-4 px-4">
         <div className="inline-flex gap-0 mb-4 bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
           <button
             onClick={() => setViewMode("entries")}
-            className={`py-2 px-4 rounded-md font-medium transition-colors ${
+            className={`min-h-touch py-2.5 px-4 rounded-md font-medium transition-colors ${
               viewMode === "entries"
                 ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                 : "text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
@@ -71,7 +71,7 @@ export function InventoryList() {
           </button>
           <button
             onClick={() => setViewMode("view")}
-            className={`py-2 px-4 rounded-md font-medium transition-colors ${
+            className={`min-h-touch py-2.5 px-4 rounded-md font-medium transition-colors ${
               viewMode === "view"
                 ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                 : "text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
@@ -88,7 +88,7 @@ export function InventoryList() {
               setSection("income");
               setSubSection(null);
             }}
-            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+            className={`flex-1 min-h-touch py-2.5 px-4 rounded-lg font-medium transition-colors ${
               section === "income"
                 ? "bg-blue-600 text-white"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
@@ -101,7 +101,7 @@ export function InventoryList() {
               setSection("expenses");
               setSubSection(null);
             }}
-            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+            className={`flex-1 min-h-touch py-2.5 px-4 rounded-lg font-medium transition-colors ${
               section === "expenses"
                 ? "bg-red-600 text-white"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
@@ -116,7 +116,7 @@ export function InventoryList() {
           <div className="flex gap-2 mb-4">
             <button
               onClick={() => setSubSection(null)}
-              className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 min-h-touch py-2.5 px-3 rounded-md text-sm font-medium transition-colors ${
                 subSection === null
                   ? "bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
@@ -126,7 +126,7 @@ export function InventoryList() {
             </button>
             <button
               onClick={() => setSubSection("buttermilk")}
-              className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 min-h-touch py-2.5 px-3 rounded-md text-sm font-medium transition-colors ${
                 subSection === "buttermilk"
                   ? "bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
@@ -136,7 +136,7 @@ export function InventoryList() {
             </button>
             <button
               onClick={() => setSubSection("chips")}
-              className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 min-h-touch py-2.5 px-3 rounded-md text-sm font-medium transition-colors ${
                 subSection === "chips"
                   ? "bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
@@ -161,7 +161,7 @@ export function InventoryList() {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full min-h-touch px-4 py-3 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
             />
           </div>
         )}
@@ -206,39 +206,41 @@ export function InventoryList() {
 
             {/* Items List */}
             {sectionItems.length > 0 ? (
-              <div className="card mx-4 mt-4 overflow-x-auto">
-                <table
-                  className="w-full"
-                  role="table"
-                  aria-label="Inventory items"
-                >
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
-                        Item
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
-                        Price
-                      </th>
-                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sectionItems.map((item) => (
-                      <ItemRow
-                        key={item.id}
-                        item={item}
-                        onUpdate={updateItem}
-                        onDelete={deleteItem}
-                      />
-                    ))}
-                  </tbody>
-                </table>
+              <div className="card mx-4 mt-4 overflow-hidden max-w-full">
+                <div className="overflow-x-auto">
+                  <table
+                    className="w-full min-w-0 table-fixed"
+                    role="table"
+                    aria-label="Inventory items"
+                  >
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white w-2/5">
+                          Item
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white w-1/4">
+                          Price
+                        </th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white w-1/3">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sectionItems.map((item) => (
+                        <ItemRow
+                          key={item.id}
+                          item={item}
+                          onUpdate={updateItem}
+                          onDelete={deleteItem}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
                 {/* Total Bar inside card */}
                 <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-3 bg-gray-50 dark:bg-gray-800/50">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
                     <span className="text-gray-600 dark:text-gray-400 font-medium">
                       Total ({sectionItems.length} item
                       {sectionItems.length !== 1 ? "s" : ""})
@@ -276,9 +278,9 @@ export function InventoryList() {
               const isPositive = netTotal >= 0;
 
               return (
-                <div className="mx-4 mt-4 p-4 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg">
-                  <div className="flex justify-between items-center">
-                    <div>
+                <div className="mx-4 mt-4 p-4 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg max-w-full overflow-hidden">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div className="min-w-0">
                       <p className="text-sm opacity-80">
                         Net Total (Income - Expenses)
                       </p>
@@ -289,7 +291,7 @@ export function InventoryList() {
                         {Math.abs(netTotal / 100).toFixed(2)}
                       </p>
                     </div>
-                    <div className="text-right text-sm opacity-80">
+                    <div className="text-left sm:text-right text-sm opacity-80 flex-shrink-0">
                       <p>Income: ₹{(totalIncome / 100).toFixed(2)}</p>
                       <p>Expenses: ₹{(totalExpenses / 100).toFixed(2)}</p>
                     </div>
@@ -322,7 +324,7 @@ export function InventoryList() {
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300 w-full mb-1">
                     Filter Categories:
                   </span>
-                  <label className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                  <label className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none min-h-touch py-1">
                     <input
                       type="checkbox"
                       checked={viewFilters.general}
@@ -332,11 +334,11 @@ export function InventoryList() {
                           general: e.target.checked,
                         }))
                       }
-                      className="form-checkbox h-4 w-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-blue-500"
+                      className="form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-blue-500"
                     />
                     <span>General Expenses</span>
                   </label>
-                  <label className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                  <label className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none min-h-touch py-1">
                     <input
                       type="checkbox"
                       checked={viewFilters.buttermilk}
@@ -346,11 +348,11 @@ export function InventoryList() {
                           buttermilk: e.target.checked,
                         }))
                       }
-                      className="form-checkbox h-4 w-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-blue-500"
+                      className="form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-blue-500"
                     />
                     <span>Butter Milk</span>
                   </label>
-                  <label className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                  <label className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none min-h-touch py-1">
                     <input
                       type="checkbox"
                       checked={viewFilters.chips}
@@ -360,7 +362,7 @@ export function InventoryList() {
                           chips: e.target.checked,
                         }))
                       }
-                      className="form-checkbox h-4 w-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-blue-500"
+                      className="form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-blue-500"
                     />
                     <span>Chips</span>
                   </label>
