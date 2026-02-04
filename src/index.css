@@ -16,6 +16,7 @@
     -webkit-touch-callout: none;
     /* Ensure body can scroll */
     width: 100%;
+    max-width: 100vw;
     overflow-x: hidden;
   }
 
@@ -40,9 +41,20 @@
     padding-right: var(--safe-area-inset-right);
     /* Enable scrolling on body and all children */
     width: 100%;
+    max-width: 100vw;
     overflow-x: hidden;
     overflow-y: auto;
     position: relative;
+  }
+
+  /* Prevent any element from causing horizontal overflow */
+  * {
+    max-width: 100%;
+  }
+
+  /* Exempt specific elements that need to overflow (like tables) */
+  table {
+    max-width: none;
   }
 
   /* Prevent iOS zoom on input focus */
