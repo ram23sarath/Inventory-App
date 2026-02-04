@@ -116,7 +116,7 @@ export function InventoryList() {
           <div className="flex gap-2 mb-4">
             <button
               onClick={() => setSubSection(null)}
-              className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 min-h-touch py-2.5 px-3 rounded-md text-sm font-medium transition-colors ${
                 subSection === null
                   ? "bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
@@ -126,7 +126,7 @@ export function InventoryList() {
             </button>
             <button
               onClick={() => setSubSection("buttermilk")}
-              className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 min-h-touch py-2.5 px-3 rounded-md text-sm font-medium transition-colors ${
                 subSection === "buttermilk"
                   ? "bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
@@ -136,7 +136,7 @@ export function InventoryList() {
             </button>
             <button
               onClick={() => setSubSection("chips")}
-              className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 min-h-touch py-2.5 px-3 rounded-md text-sm font-medium transition-colors ${
                 subSection === "chips"
                   ? "bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
