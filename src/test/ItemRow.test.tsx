@@ -11,6 +11,7 @@ const mockItem: ItemWithStatus = {
   price_cents: 1999,
   section: "income",
   item_date: "2024-01-15",
+  sub_section: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
   syncStatus: "synced",
