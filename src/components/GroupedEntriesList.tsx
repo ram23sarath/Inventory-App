@@ -104,15 +104,15 @@ export function GroupedEntriesList({
                         ${(item.price_cents / 100).toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-1">
                           <button
                             onClick={() =>
                               onUpdate(item.id, item.name, item.price_cents)
                             }
-                            className="p-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                            className="min-h-touch min-w-touch p-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors inline-flex items-center justify-center"
                             aria-label="Edit item"
-                            title="Edit"
-                          >
+                            title="Edit">
+                          
                             <svg
                               className="w-4 h-4"
                               fill="none"
@@ -129,10 +129,9 @@ export function GroupedEntriesList({
                           </button>
                           <button
                             onClick={() => onDelete(item.id)}
-                            className="p-1 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                            className="min-h-touch min-w-touch p-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors inline-flex items-center justify-center"
                             aria-label="Delete item"
-                            title="Delete"
-                          >
+                            title="Delete">
                             <svg
                               className="w-4 h-4"
                               fill="none"
