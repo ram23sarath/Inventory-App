@@ -322,7 +322,7 @@ export function InventoryList() {
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300 w-full mb-1">
                     Filter Categories:
                   </span>
-                  <label className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                  <label className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none min-h-touch py-1">
                     <input
                       type="checkbox"
                       checked={viewFilters.general}
@@ -332,11 +332,11 @@ export function InventoryList() {
                           general: e.target.checked,
                         }))
                       }
-                      className="form-checkbox h-4 w-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-blue-500"
+                      className="form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-blue-500"
                     />
                     <span>General Expenses</span>
                   </label>
-                  <label className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                  <label className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none min-h-touch py-1">
                     <input
                       type="checkbox"
                       checked={viewFilters.buttermilk}
@@ -346,11 +346,11 @@ export function InventoryList() {
                           buttermilk: e.target.checked,
                         }))
                       }
-                      className="form-checkbox h-4 w-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-blue-500"
+                      className="form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-blue-500"
                     />
                     <span>Butter Milk</span>
                   </label>
-                  <label className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                  <label className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none min-h-touch py-1">
                     <input
                       type="checkbox"
                       checked={viewFilters.chips}
@@ -360,7 +360,7 @@ export function InventoryList() {
                           chips: e.target.checked,
                         }))
                       }
-                      className="form-checkbox h-4 w-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-blue-500"
+                      className="form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-blue-500"
                     />
                     <span>Chips</span>
                   </label>
