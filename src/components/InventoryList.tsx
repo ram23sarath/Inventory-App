@@ -53,7 +53,7 @@ export function InventoryList() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-24 flex flex-col overflow-x-hidden">
+    <div className="min-h-screen w-full max-w-full bg-gray-50 dark:bg-gray-900 pb-24 flex flex-col overflow-x-hidden">
       <Header />
 
       {/* View Mode Toggle - at the very top */}
