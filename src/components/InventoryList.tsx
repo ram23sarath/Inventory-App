@@ -88,7 +88,7 @@ export function InventoryList() {
               setSection("income");
               setSubSection(null);
             }}
-            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+            className={`flex-1 min-h-touch py-2.5 px-4 rounded-lg font-medium transition-colors ${
               section === "income"
                 ? "bg-blue-600 text-white"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
@@ -101,7 +101,7 @@ export function InventoryList() {
               setSection("expenses");
               setSubSection(null);
             }}
-            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+            className={`flex-1 min-h-touch py-2.5 px-4 rounded-lg font-medium transition-colors ${
               section === "expenses"
                 ? "bg-red-600 text-white"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
