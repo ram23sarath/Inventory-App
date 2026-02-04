@@ -142,8 +142,8 @@ export function ItemRow({ item, onUpdate, onDelete }: ItemRowProps) {
       role="row"
     >
       {/* Name Cell */}
-      <td className="px-4 py-4">
-        <div className="flex items-center gap-2">
+      <td className="px-4 py-4 max-w-0">
+        <div className="flex items-center gap-2 min-w-0">
           {isPending && (
             <div className="flex-shrink-0" aria-label="Syncing">
               <Spinner size="sm" />
@@ -157,20 +157,20 @@ export function ItemRow({ item, onUpdate, onDelete }: ItemRowProps) {
               <span className="text-white text-xs font-bold">!</span>
             </div>
           )}
-          <span className="font-medium text-gray-900 dark:text-white">
+          <span className="font-medium text-gray-900 dark:text-white truncate">
             {item.name}
           </span>
         </div>
       </td>
 
       {/* Price Cell */}
-      <td className="px-4 py-4 text-gray-600 dark:text-gray-400">
+      <td className="px-4 py-4 text-gray-600 dark:text-gray-400 whitespace-nowrap">
         {formatCurrency(item.price_cents)}
       </td>
 
       {/* Actions Cell */}
       <td className="px-4 py-4 text-right">
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-1">
           <button
             onClick={handleStartEdit}
             disabled={isPending || isDeleting}
