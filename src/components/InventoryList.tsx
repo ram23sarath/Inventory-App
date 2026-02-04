@@ -57,11 +57,11 @@ export function InventoryList() {
       <Header />
 
       {/* View Mode Toggle - at the very top */}
-      <div className="max-w-2xl mx-auto mt-4 px-4">
+      <div className="max-w-2xl mx-auto w-full mt-4 px-4">
         <div className="inline-flex gap-0 mb-4 bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
           <button
             onClick={() => setViewMode("entries")}
-            className={`py-2 px-4 rounded-md font-medium transition-colors ${
+            className={`min-h-touch py-2.5 px-4 rounded-md font-medium transition-colors ${
               viewMode === "entries"
                 ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                 : "text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
@@ -71,7 +71,7 @@ export function InventoryList() {
           </button>
           <button
             onClick={() => setViewMode("view")}
-            className={`py-2 px-4 rounded-md font-medium transition-colors ${
+            className={`min-h-touch py-2.5 px-4 rounded-md font-medium transition-colors ${
               viewMode === "view"
                 ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                 : "text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
