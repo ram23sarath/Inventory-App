@@ -12,6 +12,7 @@ export interface Database {
           name: string;
           price_cents: number;
           section: "income" | "expenses";
+          sub_section: string | null;
           item_date: string;
           created_at: string;
           updated_at: string;
@@ -22,6 +23,7 @@ export interface Database {
           name: string;
           price_cents: number;
           section?: "income" | "expenses";
+          sub_section?: string | null;
           item_date?: string;
           created_at?: string;
           updated_at?: string;
@@ -32,6 +34,7 @@ export interface Database {
           name?: string;
           price_cents?: number;
           section?: "income" | "expenses";
+          sub_section?: string | null;
           item_date?: string;
           created_at?: string;
           updated_at?: string;
@@ -52,6 +55,7 @@ export interface Item {
   name: string;
   price_cents: number;
   section: "income" | "expenses";
+  sub_section: string | null;
   item_date: string;
   created_at: string;
   updated_at: string;

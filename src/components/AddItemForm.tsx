@@ -8,10 +8,12 @@ interface AddItemFormProps {
     priceCents: number,
     section: "income" | "expenses",
     itemDate: string,
+    subSection?: string | null,
   ) => Promise<void>;
   autoFocus?: boolean;
   section: "income" | "expenses";
   selectedDate: string;
+  subSection?: string | null;
 }
 
 const PREDEFINED_ITEMS = [
@@ -40,6 +42,7 @@ export function AddItemForm({
   autoFocus = false,
   section,
   selectedDate,
+  subSection,
 }: AddItemFormProps) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
@@ -50,6 +53,13 @@ export function AddItemForm({
   const [customName, setCustomName] = useState("");
   const nameSelectRef = useRef<HTMLSelectElement>(null);
   const customInputRef = useRef<HTMLInputElement>(null);
+
+  // Filter out the section name itself from items list when in a sub-section
+  const availableItems = PREDEFINED_ITEMS.filter((item) => {
+    if (subSection === "buttermilk" && item === "ButterMilk") return false;
+    if (subSection === "chips" && item === "Chips") return false;
+    return true;
+  });
 
   useEffect(() => {
     if (autoFocus) {
@@ -86,7 +96,13 @@ export function AddItemForm({
 
     setIsSubmitting(true);
     try {
-      await onAdd(finalName.trim(), priceCents, section, selectedDate);
+      await onAdd(
+        finalName.trim(),
+        priceCents,
+        section,
+        selectedDate,
+        subSection,
+      );
       // Reset form on success
       setName("");
       setPrice("");
@@ -143,7 +159,7 @@ export function AddItemForm({
               aria-describedby={nameError ? "name-error" : undefined}
             >
               <option value="">Select item name</option>
-              {PREDEFINED_ITEMS.map((item) => (
+              {availableItems.map((item) => (
                 <option key={item} value={item}>
                   {item}
                 </option>

@@ -11,7 +11,7 @@ interface UseItemsReturn {
   error: string | null;
   isOnline: boolean;
   pendingCount: number;
-  addItem: (name: string, priceCents: number, section: "income" | "expenses", itemDate: string) => Promise<void>;
+  addItem: (name: string, priceCents: number, section: "income" | "expenses", itemDate: string, subSection?: string | null) => Promise<void>;
   updateItem: (id: string, name: string, priceCents: number) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
   retrySync: () => Promise<void>;
@@ -181,6 +181,7 @@ export function useItems(): UseItemsReturn {
             name: operation.data?.name || '',
             price_cents: operation.data?.price_cents || 0,
             section: operation.data?.section || 'income',
+            sub_section: operation.data?.sub_section || null,
             item_date: operation.data?.item_date || new Date().toISOString().split('T')[0],
           }
         ]) as any);
@@ -212,7 +213,7 @@ export function useItems(): UseItemsReturn {
   };
 
   // Add item
-  const addItem = useCallback(async (name: string, priceCents: number, section: "income" | "expenses", itemDate: string) => {
+  const addItem = useCallback(async (name: string, priceCents: number, section: "income" | "expenses", itemDate: string, subSection: string | null = null) => {
     if (!user) return;
 
     const localId = crypto.randomUUID();
@@ -222,6 +223,7 @@ export function useItems(): UseItemsReturn {
       name,
       price_cents: priceCents,
       section,
+      sub_section: subSection,
       item_date: itemDate,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -242,6 +244,7 @@ export function useItems(): UseItemsReturn {
               name,
               price_cents: priceCents,
               section,
+              sub_section: subSection,
               item_date: itemDate,
             }
           ]) as any)
@@ -266,7 +269,7 @@ export function useItems(): UseItemsReturn {
         // Queue for later sync
         offlineQueue.enqueue({
           type: 'insert',
-          data: { name, price_cents: priceCents, section, item_date: itemDate },
+          data: { name, price_cents: priceCents, section, sub_section: subSection, item_date: itemDate },
         });
         
         setItems(prev =>
@@ -284,7 +287,7 @@ export function useItems(): UseItemsReturn {
       // Queue for when online
       offlineQueue.enqueue({
         type: 'insert',
-        data: { name, price_cents: priceCents, section, item_date: itemDate },
+        data: { name, price_cents: priceCents, section, sub_section: subSection, item_date: itemDate },
       });
       setPendingCount(offlineQueue.getPendingCount());
     }
