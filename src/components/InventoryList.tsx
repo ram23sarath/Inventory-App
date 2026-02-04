@@ -278,9 +278,9 @@ export function InventoryList() {
               const isPositive = netTotal >= 0;
 
               return (
-                <div className="mx-4 mt-4 p-4 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg">
-                  <div className="flex justify-between items-center">
-                    <div>
+                <div className="mx-4 mt-4 p-4 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg max-w-full overflow-hidden">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div className="min-w-0">
                       <p className="text-sm opacity-80">
                         Net Total (Income - Expenses)
                       </p>
@@ -291,7 +291,7 @@ export function InventoryList() {
                         {Math.abs(netTotal / 100).toFixed(2)}
                       </p>
                     </div>
-                    <div className="text-right text-sm opacity-80">
+                    <div className="text-left sm:text-right text-sm opacity-80 flex-shrink-0">
                       <p>Income: ₹{(totalIncome / 100).toFixed(2)}</p>
                       <p>Expenses: ₹{(totalExpenses / 100).toFixed(2)}</p>
                     </div>
