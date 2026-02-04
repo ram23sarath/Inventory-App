@@ -236,13 +236,13 @@ export function Header() {
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={handleCloseDialog}
-                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors active:scale-95 active:transition-transform"
+                  className="min-h-touch px-4 py-3 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors active:scale-95 active:transition-transform"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirmSignOut}
-                  className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors active:scale-95 active:transition-transform"
+                  className="min-h-touch px-4 py-3 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors active:scale-95 active:transition-transform"
                 >
                   Sign Out
                 </button>
