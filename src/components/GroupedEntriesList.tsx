@@ -43,9 +43,9 @@ export function GroupedEntriesList({
         </h2>
       </div>
 
-      <div className="card mx-4 flex flex-col overflow-hidden bg-white dark:bg-gray-800 rounded-lg shadow">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left" role="table">
+      <div className="card mx-4 flex flex-col overflow-hidden bg-white dark:bg-gray-800 rounded-lg shadow max-w-full">
+        <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
+          <table className="w-full min-w-0 text-left table-fixed" role="table">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
                 <th className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
