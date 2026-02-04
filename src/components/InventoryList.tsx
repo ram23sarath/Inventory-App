@@ -206,39 +206,41 @@ export function InventoryList() {
 
             {/* Items List */}
             {sectionItems.length > 0 ? (
-              <div className="card mx-4 mt-4 overflow-x-auto">
-                <table
-                  className="w-full"
-                  role="table"
-                  aria-label="Inventory items"
-                >
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
-                        Item
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
-                        Price
-                      </th>
-                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sectionItems.map((item) => (
-                      <ItemRow
-                        key={item.id}
-                        item={item}
-                        onUpdate={updateItem}
-                        onDelete={deleteItem}
-                      />
-                    ))}
-                  </tbody>
-                </table>
+              <div className="card mx-4 mt-4 overflow-hidden max-w-full">
+                <div className="overflow-x-auto">
+                  <table
+                    className="w-full min-w-0 table-fixed"
+                    role="table"
+                    aria-label="Inventory items"
+                  >
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white w-2/5">
+                          Item
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white w-1/4">
+                          Price
+                        </th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white w-1/3">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sectionItems.map((item) => (
+                        <ItemRow
+                          key={item.id}
+                          item={item}
+                          onUpdate={updateItem}
+                          onDelete={deleteItem}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
                 {/* Total Bar inside card */}
                 <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-3 bg-gray-50 dark:bg-gray-800/50">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
                     <span className="text-gray-600 dark:text-gray-400 font-medium">
                       Total ({sectionItems.length} item
                       {sectionItems.length !== 1 ? "s" : ""})
