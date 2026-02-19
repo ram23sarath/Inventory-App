@@ -85,6 +85,7 @@ export function GroupedEntriesList({
                       className="px-4 py-2 font-semibold text-blue-900 dark:text-blue-100"
                     >
                       <div className="flex justify-between items-center gap-2 flex-wrap">
+                        <span className="truncate">{formattedDate}</span>
                         <span className="text-blue-600 dark:text-blue-300 flex-shrink-0">
                           ₹{totalFormatted}
                         </span>
