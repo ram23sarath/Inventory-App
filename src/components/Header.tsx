@@ -135,7 +135,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-10 bg-white border-b border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+    <header className="sticky top-0 z-10 bg-white/85 backdrop-blur-md border-b border-gray-200/80 dark:bg-gray-800/85 dark:border-gray-700/80">
       <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center gap-3">
@@ -233,16 +233,16 @@ export function Header() {
                   {signOutError}
                 </div>
               )}
-              <div className="flex gap-3 justify-end">
+              <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
                 <button
                   onClick={handleCloseDialog}
-                  className="min-h-touch px-4 py-3 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors active:scale-95 active:transition-transform"
+                  className="min-h-touch px-4 py-3 w-full sm:w-auto text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-[colors,transform] active:scale-95"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirmSignOut}
-                  className="min-h-touch px-4 py-3 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors active:scale-95 active:transition-transform"
+                  className="min-h-touch px-4 py-3 w-full sm:w-auto text-white bg-red-600 rounded-lg hover:bg-red-700 transition-[colors,transform] active:scale-95"
                 >
                   Sign Out
                 </button>

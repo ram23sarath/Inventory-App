@@ -51,11 +51,34 @@ export function ItemRow({ item, onUpdate, onDelete }: ItemRowProps) {
       return;
     }
 
-    const priceCents = Math.round(parseFloat(editPrice) * 100);
-    if (isNaN(priceCents) || priceCents < 0) {
+    const priceStr = editPrice.trim();
+    if (priceStr === "" || priceStr.startsWith("-")) {
       handleCancelEdit();
       return;
     }
+
+    const match = priceStr.match(/^(\d*)(?:\.(\d*))?$/);
+    if (!match) {
+      handleCancelEdit();
+      return;
+    }
+
+    const wholePart = match[1] || "0";
+    const fracPart = match[2] || "";
+
+    const whole = parseInt(wholePart, 10);
+    if (isNaN(whole) || whole < 0) {
+      handleCancelEdit();
+      return;
+    }
+
+    const fracPadded = (fracPart + "00").slice(0, 2);
+    if (!/^\d{2}$/.test(fracPadded)) {
+      handleCancelEdit();
+      return;
+    }
+
+    const priceCents = whole * 100 + parseInt(fracPadded, 10);
 
     if (trimmedName !== item.name || priceCents !== item.price_cents) {
       onUpdate(item.id, trimmedName, priceCents);
@@ -164,7 +187,7 @@ export function ItemRow({ item, onUpdate, onDelete }: ItemRowProps) {
       </td>
 
       {/* Price Cell */}
-      <td className="px-4 py-4 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+      <td className="px-4 py-4 text-gray-600 dark:text-gray-400 whitespace-nowrap tabular-nums">
         {formatCurrency(item.price_cents)}
       </td>
 

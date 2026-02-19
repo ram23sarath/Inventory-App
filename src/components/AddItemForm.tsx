@@ -232,7 +232,7 @@ export function AddItemForm({
         )}
 
         {/* Price Input */}
-        <div className="sm:w-32">
+        <div className="sm:w-36">
           <label htmlFor="item-price" className="sr-only">
             Price
           </label>

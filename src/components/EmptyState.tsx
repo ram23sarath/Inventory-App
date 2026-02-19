@@ -60,7 +60,7 @@ export function EmptyState({ onAddFirst }: EmptyStateProps) {
       {/* CTA Button */}
       <button
         onClick={onAddFirst}
-        className="btn-primary"
+        className="btn-primary w-full sm:w-auto max-w-xs"
         aria-label="Add your first inventory item"
       >
         <svg

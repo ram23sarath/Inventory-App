@@ -6,10 +6,20 @@ import { ItemRow } from "./ItemRow";
 import { EmptyState } from "./EmptyState";
 import { Spinner } from "./Spinner";
 import { GroupedEntriesList } from "./GroupedEntriesList";
+import { TotalBar } from "./TotalBar";
 
 export function InventoryList() {
-  const { items, isLoading, error, addItem, updateItem, deleteItem } =
-    useItems();
+  const {
+    items,
+    isLoading,
+    error,
+    addItem,
+    updateItem,
+    deleteItem,
+    isOnline,
+    pendingCount,
+    retrySync,
+  } = useItems();
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [section, setSection] = useState<"income" | "expenses">("income");
@@ -58,10 +68,10 @@ export function InventoryList() {
 
       {/* View Mode Toggle - at the very top */}
       <div className="max-w-2xl mx-auto w-full mt-4 px-4">
-        <div className="inline-flex gap-0 mb-4 bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
+        <div className="flex gap-0 mb-4 bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
           <button
             onClick={() => setViewMode("entries")}
-            className={`min-h-touch py-2.5 px-4 rounded-md font-medium transition-colors ${
+            className={`flex-1 min-h-touch py-2.5 px-4 rounded-md font-medium transition-colors ${
               viewMode === "entries"
                 ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                 : "text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
@@ -71,7 +81,7 @@ export function InventoryList() {
           </button>
           <button
             onClick={() => setViewMode("view")}
-            className={`min-h-touch py-2.5 px-4 rounded-md font-medium transition-colors ${
+            className={`flex-1 min-h-touch py-2.5 px-4 rounded-md font-medium transition-colors ${
               viewMode === "view"
                 ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                 : "text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
@@ -113,10 +123,10 @@ export function InventoryList() {
 
         {/* Sub Section Toggle for Expenses */}
         {viewMode === "entries" && section === "expenses" && (
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-1.5 mb-4">
             <button
               onClick={() => setSubSection(null)}
-              className={`flex-1 min-h-touch py-2.5 px-3 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 min-h-touch py-2.5 px-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
                 subSection === null
                   ? "bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
@@ -126,7 +136,7 @@ export function InventoryList() {
             </button>
             <button
               onClick={() => setSubSection("buttermilk")}
-              className={`flex-1 min-h-touch py-2.5 px-3 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 min-h-touch py-2.5 px-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
                 subSection === "buttermilk"
                   ? "bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
@@ -136,7 +146,7 @@ export function InventoryList() {
             </button>
             <button
               onClick={() => setSubSection("chips")}
-              className={`flex-1 min-h-touch py-2.5 px-3 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 min-h-touch py-2.5 px-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
                 subSection === "chips"
                   ? "bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
@@ -207,9 +217,9 @@ export function InventoryList() {
             {/* Items List */}
             {sectionItems.length > 0 ? (
               <div className="card mx-4 mt-4 overflow-hidden max-w-full">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto scroll-affordance">
                   <table
-                    className="w-full min-w-0 table-fixed"
+                    className="responsive-table w-full min-w-0 table-fixed"
                     role="table"
                     aria-label="Inventory items"
                   >
@@ -245,7 +255,7 @@ export function InventoryList() {
                       Total ({sectionItems.length} item
                       {sectionItems.length !== 1 ? "s" : ""})
                     </span>
-                    <span className="text-lg font-bold text-gray-900 dark:text-white">
+                    <span className="text-lg font-bold text-gray-900 dark:text-white tabular-nums">
                       ₹
                       {(
                         sectionItems.reduce(
@@ -281,17 +291,17 @@ export function InventoryList() {
                 <div className="mx-4 mt-4 p-4 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg max-w-full overflow-hidden">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                     <div className="min-w-0">
-                      <p className="text-sm opacity-80">
+                      <p className="text-sm text-blue-100">
                         Net Total (Income - Expenses)
                       </p>
                       <p
-                        className={`text-2xl font-bold ${isPositive ? "text-green-200" : "text-red-200"}`}
+                        className={`text-2xl font-bold tabular-nums ${isPositive ? "text-green-200" : "text-red-200"}`}
                       >
                         {isPositive ? "+" : "-"}₹
                         {Math.abs(netTotal / 100).toFixed(2)}
                       </p>
                     </div>
-                    <div className="text-left sm:text-right text-sm opacity-80 flex-shrink-0">
+                    <div className="text-left sm:text-right text-sm text-blue-100 flex-shrink-0">
                       <p>Income: ₹{(totalIncome / 100).toFixed(2)}</p>
                       <p>Expenses: ₹{(totalExpenses / 100).toFixed(2)}</p>
                     </div>
@@ -416,6 +426,16 @@ export function InventoryList() {
           </>
         )}
       </main>
+
+      {/* Sticky Total Bar — visible while scrolling in Entries mode */}
+      {viewMode === "entries" && sectionItems.length > 0 && (
+        <TotalBar
+          items={sectionItems}
+          pendingCount={pendingCount}
+          isOnline={isOnline}
+          onRetrySync={retrySync}
+        />
+      )}
     </div>
   );
 }

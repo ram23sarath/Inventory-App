@@ -1,0 +1,566 @@
+[
+    {
+        "id": "UX-001",
+        "title": "Tables not responsive at ≤420px — items unreadable",
+        "severity": "critical",
+        "category": "layout",
+        "problem": "The <table> with table-fixed stays columnar at all widths; at 320-375px columns are severely cramped, item names truncate to 2-3 characters, and action buttons overlap.",
+        "viewports": [
+            "320px",
+            "360px",
+            "375px"
+        ],
+        "reproduction_steps": [
+            "Open Entries view with Income selected",
+            "Add 3+ items with names like 'Groundnuts'",
+            "Resize viewport to 320px",
+            "Observe item names are unreadable and actions overflow"
+        ],
+        "files": [
+            {
+                "path": "src/components/InventoryList.tsx",
+                "lines": "209-259"
+            }
+        ],
+        "proposed_change": {
+            "type": "css",
+            "description": "Add responsive-table class and CSS media query that converts table rows to flex cards at ≤480px",
+            "patch_snippet": "@media (max-width: 480px) {\n  .responsive-table thead { display: none; }\n  .responsive-table, .responsive-table tbody, .responsive-table tr { display: block; width: 100%; }\n  .responsive-table tr { padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }\n  .responsive-table td { display: block; padding: 0; border: none; }\n  .responsive-table td:first-child { flex: 1 1 60%; font-weight: 600; min-width: 0; }\n  .responsive-table td:nth-child(2) { flex: 0 0 auto; text-align: right; font-variant-numeric: tabular-nums; }\n  .responsive-table td:last-child { flex: 0 0 100%; display: flex; justify-content: flex-end; margin-top: 4px; padding-top: 4px; }\n}",
+            "apply_to": "src/index.css (inside @layer components)"
+        },
+        "rationale": "Mobile-first heuristic: dense data tables must convert to stacked card rows on narrow viewports to preserve readability.",
+        "acceptance_criteria": [
+            "At 320px, each item shows full name (wrapping), price right-aligned, then actions on a new line",
+            "At 768px, classic table layout is preserved",
+            "Dark mode border colors are correct"
+        ],
+        "complexity": "medium"
+    },
+    {
+        "id": "UX-002",
+        "title": "GroupedEntriesList table not responsive on mobile",
+        "severity": "critical",
+        "category": "layout",
+        "problem": "Same table-fixed issue as UX-001 in the View All mode; date header rows and item rows compress to unreadable sizes.",
+        "viewports": [
+            "320px",
+            "360px",
+            "375px"
+        ],
+        "reproduction_steps": [
+            "Switch to View All mode",
+            "Select Income or Expenses with multiple entries",
+            "Resize to 320px",
+            "Observe cramped columns"
+        ],
+        "files": [
+            {
+                "path": "src/components/GroupedEntriesList.tsx",
+                "lines": "48-157"
+            }
+        ],
+        "proposed_change": {
+            "type": "css",
+            "description": "Apply same responsive-table class from UX-001",
+            "patch_snippet": "Add class='responsive-table' to the <table> element in GroupedEntriesList.tsx",
+            "apply_to": "src/components/GroupedEntriesList.tsx line 48"
+        },
+        "rationale": "Consistency with UX-001; all data tables in the app should use the same responsive pattern.",
+        "acceptance_criteria": [
+            "Same criteria as UX-001",
+            "Date header rows span full width on mobile"
+        ],
+        "complexity": "medium"
+    },
+    {
+        "id": "UX-003",
+        "title": "Table overflow has no visual scroll affordance",
+        "severity": "high",
+        "category": "layout",
+        "problem": "overflow-x-auto on table wrappers allows scrolling but provides no visual cue (gradient or shadow) that content extends off-screen.",
+        "viewports": [
+            "375px",
+            "412px"
+        ],
+        "reproduction_steps": [
+            "Open Entries view with items",
+            "Resize to 375px where table just fits but Actions column is partially hidden",
+            "No visual hint exists that user can scroll right"
+        ],
+        "files": [
+            {
+                "path": "src/components/InventoryList.tsx",
+                "lines": "210"
+            },
+            {
+                "path": "src/components/GroupedEntriesList.tsx",
+                "lines": "47"
+            }
+        ],
+        "proposed_change": {
+            "type": "css",
+            "description": "Add scroll-affordance class with a right-edge gradient overlay",
+            "patch_snippet": ".scroll-affordance { position: relative; }\n.scroll-affordance::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 24px; background: linear-gradient(to left, rgb(255 255 255 / 0.9), transparent); pointer-events: none; }\n.dark .scroll-affordance::after { background: linear-gradient(to left, rgb(31 41 55 / 0.9), transparent); }",
+            "apply_to": "src/index.css (inside @layer components)"
+        },
+        "rationale": "Users on mobile need visual hints for horizontal scroll — a gradient edge is the standard affordance pattern.",
+        "acceptance_criteria": [
+            "A subtle gradient appears on the right edge when table content overflows",
+            "Gradient uses correct dark mode colors"
+        ],
+        "complexity": "low"
+    },
+    {
+        "id": "UX-004",
+        "title": "Currency amounts not using tabular-nums font variant",
+        "severity": "high",
+        "category": "visual",
+        "problem": "Price digits in tables and totals don't use monospaced digit spacing, causing visual column misalignment when values differ in width.",
+        "viewports": [
+            "320px",
+            "375px",
+            "768px"
+        ],
+        "reproduction_steps": [
+            "Add items with prices ₹1.00 and ₹1,234.56",
+            "Observe the digits don't align vertically in the price column"
+        ],
+        "files": [
+            {
+                "path": "src/components/ItemRow.tsx",
+                "lines": "167-169"
+            },
+            {
+                "path": "src/components/GroupedEntriesList.tsx",
+                "lines": "103-104"
+            },
+            {
+                "path": "src/components/InventoryList.tsx",
+                "lines": "248-256"
+            }
+        ],
+        "proposed_change": {
+            "type": "css",
+            "description": "Add tabular-nums utility class and apply to all currency elements",
+            "patch_snippet": ".tabular-nums { font-variant-numeric: tabular-nums; }",
+            "apply_to": "src/index.css (inside @layer utilities)"
+        },
+        "rationale": "Tabular figures ensure uniform digit width for scannable financial columns — standard best practice for any table displaying money.",
+        "acceptance_criteria": [
+            "All currency values display with uniform digit widths",
+            "Price columns visually align when multiple rows are visible"
+        ],
+        "complexity": "low"
+    },
+    {
+        "id": "UX-005",
+        "title": "Net Total gradient card text fails WCAG AA contrast",
+        "severity": "high",
+        "category": "accessibility",
+        "problem": "In the View All Net Total card, opacity-80 white text on blue-purple gradient yields contrast below 4.5:1 on lighter gradient areas.",
+        "viewports": [
+            "320px",
+            "375px",
+            "768px"
+        ],
+        "reproduction_steps": [
+            "Switch to View All mode",
+            "Observe the 'Net Total (Income - Expenses)' and 'Income: / Expenses:' text",
+            "Check contrast with a contrast analyser tool — ratio ≈ 3.8:1"
+        ],
+        "files": [
+            {
+                "path": "src/components/InventoryList.tsx",
+                "lines": "284-296"
+            }
+        ],
+        "proposed_change": {
+            "type": "markup",
+            "description": "Replace opacity-80 with text-blue-100 for guaranteed contrast",
+            "patch_snippet": "Replace className containing 'opacity-80' with 'text-blue-100' on lines 284 and 294",
+            "apply_to": "src/components/InventoryList.tsx"
+        },
+        "rationale": "WCAG AA requires 4.5:1 for normal text. text-blue-100 (#dbeafe) on blue-600 (#2563eb) ≈ 5.2:1 — passes.",
+        "acceptance_criteria": [
+            "All text in the Net Total card has contrast ratio ≥ 4.5:1",
+            "Visual appearance remains clean and readable"
+        ],
+        "complexity": "low"
+    },
+    {
+        "id": "UX-006",
+        "title": "Dark mode placeholder text below WCAG AA contrast",
+        "severity": "high",
+        "category": "accessibility",
+        "problem": "The .input class uses dark:placeholder-gray-400 (#9ca3af on #1f2937) ≈ 4.2:1, below the 4.5:1 AA threshold.",
+        "viewports": [
+            "320px",
+            "375px",
+            "768px"
+        ],
+        "reproduction_steps": [
+            "Enable dark mode",
+            "Navigate to Add Item form or Auth form",
+            "Observe placeholder text readability in inputs"
+        ],
+        "files": [
+            {
+                "path": "src/index.css",
+                "lines": "116-121"
+            }
+        ],
+        "proposed_change": {
+            "type": "css",
+            "description": "Change dark:placeholder-gray-400 to dark:placeholder-gray-500 in .input class",
+            "patch_snippet": "Replace 'dark:placeholder-gray-400' with 'dark:placeholder-gray-500' in the .input class",
+            "apply_to": "src/index.css line 121"
+        },
+        "rationale": "gray-500 (#6b7280) on gray-800 (#1f2937) ≈ 5.1:1 — passes WCAG AA.",
+        "acceptance_criteria": [
+            "All input placeholders in dark mode have contrast ratio ≥ 4.5:1"
+        ],
+        "complexity": "low"
+    },
+    {
+        "id": "UX-007",
+        "title": "Sign-out dialog buttons cramped on narrow mobile",
+        "severity": "medium",
+        "category": "layout",
+        "problem": "Dialog buttons are flex gap-3 justify-end — narrow inline buttons at 320px are hard to tap and look unbalanced.",
+        "viewports": [
+            "320px",
+            "360px"
+        ],
+        "reproduction_steps": [
+            "Click the sign-out icon in the header",
+            "Observe the confirmation dialog at 320px",
+            "Buttons are small and right-aligned"
+        ],
+        "files": [
+            {
+                "path": "src/components/Header.tsx",
+                "lines": "236-249"
+            }
+        ],
+        "proposed_change": {
+            "type": "markup",
+            "description": "Stack buttons vertically on mobile with flex-col-reverse, make buttons w-full sm:w-auto",
+            "patch_snippet": "Change div className to 'flex flex-col-reverse sm:flex-row gap-3 sm:justify-end' and add 'w-full sm:w-auto' to both buttons",
+            "apply_to": "src/components/Header.tsx lines 236-249"
+        },
+        "rationale": "Full-width stacked buttons (destructive on top via flex-col-reverse) is the standard mobile dialog pattern.",
+        "acceptance_criteria": [
+            "At ≤480px, dialog buttons are full-width and stacked vertically",
+            "At ≥640px, buttons are inline and right-aligned"
+        ],
+        "complexity": "low"
+    },
+    {
+        "id": "UX-008",
+        "title": "View mode toggle not full-width on mobile",
+        "severity": "medium",
+        "category": "layout",
+        "problem": "Entries/View All toggle uses inline-flex and doesn't span the full width, leaving dead space on mobile.",
+        "viewports": [
+            "320px",
+            "360px"
+        ],
+        "reproduction_steps": [
+            "Open the main page at 320px",
+            "Observe the Entries/View All toggle doesn't span full width"
+        ],
+        "files": [
+            {
+                "path": "src/components/InventoryList.tsx",
+                "lines": "61-82"
+            }
+        ],
+        "proposed_change": {
+            "type": "markup",
+            "description": "Change inline-flex to flex and add flex-1 to child buttons",
+            "patch_snippet": "Change 'inline-flex gap-0' to 'flex gap-0' on line 61; add 'flex-1' to both child buttons",
+            "apply_to": "src/components/InventoryList.tsx"
+        },
+        "rationale": "Toggle controls should span available width on mobile to maximize touch area and reduce wasted space.",
+        "acceptance_criteria": [
+            "Toggle spans full container width at all mobile viewports",
+            "Both buttons share equal width"
+        ],
+        "complexity": "low"
+    },
+    {
+        "id": "UX-009",
+        "title": "No sticky total visible in Entries mode",
+        "severity": "high",
+        "category": "pattern",
+        "problem": "The total is rendered inside the table card at the bottom. With many items, users must scroll past everything to see their total — core financial data is hidden.",
+        "viewports": [
+            "320px",
+            "375px",
+            "412px"
+        ],
+        "reproduction_steps": [
+            "Add 10+ items in Entries mode",
+            "Scroll through the list",
+            "Total is only visible at the very bottom of the scrolled list"
+        ],
+        "files": [
+            {
+                "path": "src/components/InventoryList.tsx",
+                "lines": "241-258"
+            },
+            {
+                "path": "src/components/TotalBar.tsx",
+                "lines": "1-87"
+            }
+        ],
+        "proposed_change": {
+            "type": "markup",
+            "description": "Render existing TotalBar component at bottom of InventoryList in Entries mode, using the existing sticky-bottom CSS class",
+            "patch_snippet": "Add <TotalBar items={sectionItems} pendingCount={0} isOnline={true} /> after </main> in InventoryList component",
+            "apply_to": "src/components/InventoryList.tsx (after line 418)"
+        },
+        "rationale": "Financial apps must keep running totals visible at all times — the TotalBar component already exists and is styled for exactly this purpose.",
+        "acceptance_criteria": [
+            "A sticky bar at the bottom shows section total while scrolling",
+            "Total updates when items are added or removed"
+        ],
+        "complexity": "low"
+    },
+    {
+        "id": "UX-011",
+        "title": "Expense sub-section toggle buttons cramped at 320px",
+        "severity": "medium",
+        "category": "layout",
+        "problem": "Three buttons (Normal, Butter Milk, Chips) with flex-1 and px-3 text-sm are very tight at 320px, text may wrap.",
+        "viewports": [
+            "320px"
+        ],
+        "reproduction_steps": [
+            "Switch to Expenses in Entries mode",
+            "Resize to 320px",
+            "Observe the three sub-section buttons are cramped"
+        ],
+        "files": [
+            {
+                "path": "src/components/InventoryList.tsx",
+                "lines": "116-147"
+            }
+        ],
+        "proposed_change": {
+            "type": "markup",
+            "description": "Reduce gap from gap-2 to gap-1.5, reduce px-3 to px-2, use text-xs sm:text-sm",
+            "patch_snippet": "Change 'flex gap-2' to 'flex gap-1.5'; change 'py-2.5 px-3 rounded-md text-sm' to 'py-2.5 px-2 rounded-md text-xs sm:text-sm'",
+            "apply_to": "src/components/InventoryList.tsx lines 116-147"
+        },
+        "rationale": "At 320px with 16px left/right padding and 3 buttons with gaps, each button only gets ~85px — text-sm (14px) text wraps on some labels.",
+        "acceptance_criteria": [
+            "All three buttons visible and readable at 320px without text wrapping"
+        ],
+        "complexity": "low"
+    },
+    {
+        "id": "UX-012",
+        "title": "Price input too narrow at tablet widths",
+        "severity": "medium",
+        "category": "layout",
+        "problem": "Price input uses sm:w-32 (128px) which may be too narrow for values like ₹99,999.99 with the ₹ prefix taking space.",
+        "viewports": [
+            "768px"
+        ],
+        "reproduction_steps": [
+            "Open Add Item form at ≥640px",
+            "Type a large price like 99999.99",
+            "Observe text might overflow or be cramped"
+        ],
+        "files": [
+            {
+                "path": "src/components/AddItemForm.tsx",
+                "lines": "235"
+            }
+        ],
+        "proposed_change": {
+            "type": "markup",
+            "description": "Widen price input container from sm:w-32 to sm:w-36",
+            "patch_snippet": "Change 'sm:w-32' to 'sm:w-36'",
+            "apply_to": "src/components/AddItemForm.tsx line 235"
+        },
+        "rationale": "The ₹ prefix + 8 digits + decimal point needs ~140px at 16px font.",
+        "acceptance_criteria": [
+            "Prices up to ₹99,999.99 display comfortably at ≥640px"
+        ],
+        "complexity": "low"
+    },
+    {
+        "id": "UX-013",
+        "title": "Action icons too small in GroupedEntriesList (16px visual)",
+        "severity": "medium",
+        "category": "accessibility",
+        "problem": "Edit/Delete icons in GroupedEntriesList are w-4 h-4 (16px) while the same icons in ItemRow are w-5 h-5 (20px). Inconsistent and feels tiny.",
+        "viewports": [
+            "320px",
+            "375px"
+        ],
+        "reproduction_steps": [
+            "Open View All mode with entries",
+            "Compare action icon sizes with Entries mode",
+            "Icons are 20% smaller in View All"
+        ],
+        "files": [
+            {
+                "path": "src/components/GroupedEntriesList.tsx",
+                "lines": "117,137"
+            }
+        ],
+        "proposed_change": {
+            "type": "markup",
+            "description": "Increase SVG icon size from w-4 h-4 to w-5 h-5 to match ItemRow",
+            "patch_snippet": "Change className='w-4 h-4' to className='w-5 h-5' on both SVGs in GroupedEntriesList action buttons",
+            "apply_to": "src/components/GroupedEntriesList.tsx lines 117, 137"
+        },
+        "rationale": "Visual consistency across views; larger icons are easier to perceive as tappable targets.",
+        "acceptance_criteria": [
+            "Edit/Delete icons in View All are 20x20px, matching Entries mode"
+        ],
+        "complexity": "low"
+    },
+    {
+        "id": "UX-014",
+        "title": "Empty state CTA not full-width on mobile",
+        "severity": "low",
+        "category": "pattern",
+        "problem": "The 'Add First Item' button is inline-flex and narrow. On mobile, primary CTAs should be wider for discoverability.",
+        "viewports": [
+            "320px",
+            "375px"
+        ],
+        "reproduction_steps": [
+            "Clear all items or view a section with no entries",
+            "Observe the narrow centered button"
+        ],
+        "files": [
+            {
+                "path": "src/components/EmptyState.tsx",
+                "lines": "61-81"
+            }
+        ],
+        "proposed_change": {
+            "type": "markup",
+            "description": "Add w-full sm:w-auto max-w-xs to the CTA button",
+            "patch_snippet": "Change className='btn-primary' to className='btn-primary w-full sm:w-auto max-w-xs'",
+            "apply_to": "src/components/EmptyState.tsx line 63"
+        },
+        "rationale": "Full-width primary CTAs on mobile provide larger touch areas and stronger visual hierarchy.",
+        "acceptance_criteria": [
+            "CTA button is full-width (up to 320px max) on mobile, inline on tablet+"
+        ],
+        "complexity": "low"
+    },
+    {
+        "id": "UX-015",
+        "title": "Sticky header lacks backdrop blur polish",
+        "severity": "low",
+        "category": "visual",
+        "problem": "The sticky header uses opaque bg-white which looks dated. A blur effect creates a premium glassmorphism feel.",
+        "viewports": [
+            "320px",
+            "375px",
+            "768px"
+        ],
+        "reproduction_steps": [
+            "Scroll the main content",
+            "Observe the header is a solid opaque bar"
+        ],
+        "files": [
+            {
+                "path": "src/components/Header.tsx",
+                "lines": "138"
+            }
+        ],
+        "proposed_change": {
+            "type": "markup",
+            "description": "Add bg-white/85 backdrop-blur-md to header",
+            "patch_snippet": "Change 'bg-white' to 'bg-white/85 backdrop-blur-md' and 'dark:bg-gray-800' to 'dark:bg-gray-800/85'",
+            "apply_to": "src/components/Header.tsx line 138"
+        },
+        "rationale": "Backdrop blur is a modern mobile-first design pattern that adds depth without obscuring content.",
+        "acceptance_criteria": [
+            "Header background is semi-transparent with blur effect",
+            "Content beneath is perceivable but not distracting"
+        ],
+        "complexity": "low"
+    },
+    {
+        "id": "UX-016",
+        "title": "GroupedEntriesList missing grand total at bottom",
+        "severity": "medium",
+        "category": "content",
+        "problem": "View All mode shows per-date subtotals but no section grand total, forcing users to mentally sum all date groups.",
+        "viewports": [
+            "320px",
+            "375px",
+            "768px"
+        ],
+        "reproduction_steps": [
+            "Switch to View All mode",
+            "View Income or any expense category",
+            "Scroll to bottom — no grand total row exists"
+        ],
+        "files": [
+            {
+                "path": "src/components/GroupedEntriesList.tsx",
+                "lines": "156-158"
+            }
+        ],
+        "proposed_change": {
+            "type": "markup",
+            "description": "Add a <tfoot> with grand total row after </tbody>",
+            "patch_snippet": "<tfoot><tr class='bg-gray-100 dark:bg-gray-700 border-t-2 border-gray-300 dark:border-gray-600'><td class='px-4 py-3 font-bold text-gray-900 dark:text-white'>Grand Total</td><td class='px-4 py-3 font-bold text-gray-900 dark:text-white tabular-nums'>₹{total}</td><td></td></tr></tfoot>",
+            "apply_to": "src/components/GroupedEntriesList.tsx after line 156"
+        },
+        "rationale": "Financial data must be summable at a glance. A grand total row eliminates mental arithmetic.",
+        "acceptance_criteria": [
+            "A bold Grand Total row appears at the bottom of each grouped list",
+            "Total is computed from all items in the list"
+        ],
+        "complexity": "low"
+    },
+    {
+        "id": "UX-017",
+        "title": "TotalBar component exists but is never rendered",
+        "severity": "medium",
+        "category": "pattern",
+        "problem": "A well-built TotalBar component with offline status, sync indicator, and sticky-bottom styling exists but is unused — totals are instead embedded in the table card.",
+        "viewports": [
+            "320px",
+            "375px",
+            "768px"
+        ],
+        "reproduction_steps": [
+            "Note that TotalBar.tsx is imported nowhere in the app",
+            "The total in Entries mode is static inside the card, not sticky"
+        ],
+        "files": [
+            {
+                "path": "src/components/TotalBar.tsx",
+                "lines": "1-87"
+            },
+            {
+                "path": "src/components/InventoryList.tsx",
+                "lines": "241-258"
+            }
+        ],
+        "proposed_change": {
+            "type": "markup",
+            "description": "Render <TotalBar> after </main> in InventoryList for Entries mode",
+            "patch_snippet": "Add import and render: <TotalBar items={sectionItems} pendingCount={0} isOnline={true} />",
+            "apply_to": "src/components/InventoryList.tsx"
+        },
+        "rationale": "Reuse existing well-designed components; the TotalBar provides offline/sync UI that the inline total doesn't.",
+        "acceptance_criteria": [
+            "TotalBar is rendered at the bottom of the viewport in Entries mode",
+            "Shows item count and formatted total with sticky behavior"
+        ],
+        "complexity": "low"
+    }
+]

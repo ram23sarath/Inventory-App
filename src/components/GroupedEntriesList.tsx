@@ -35,6 +35,9 @@ export function GroupedEntriesList({
       {} as Record<string, ItemWithStatus[]>,
     );
 
+  const grandTotal = items.reduce((sum, item) => sum + item.price_cents, 0);
+  const grandTotalFormatted = (grandTotal / 100).toFixed(2);
+
   return (
     <>
       <div className="mx-4 mt-8 first:mt-4">
@@ -44,8 +47,11 @@ export function GroupedEntriesList({
       </div>
 
       <div className="card mx-4 flex flex-col overflow-hidden bg-white dark:bg-gray-800 rounded-lg shadow max-w-full">
-        <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
-          <table className="w-full min-w-0 text-left table-fixed" role="table">
+        <div className="overflow-x-auto scroll-affordance -webkit-overflow-scrolling-touch">
+          <table
+            className="responsive-table w-full min-w-0 text-left table-fixed"
+            role="table"
+          >
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
                 <th className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
@@ -114,7 +120,7 @@ export function GroupedEntriesList({
                             title="Edit"
                           >
                             <svg
-                              className="w-4 h-4"
+                              className="w-5 h-5"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -134,7 +140,7 @@ export function GroupedEntriesList({
                             title="Delete"
                           >
                             <svg
-                              className="w-4 h-4"
+                              className="w-5 h-5"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -154,6 +160,17 @@ export function GroupedEntriesList({
                 ];
               })}
             </tbody>
+            <tfoot>
+              <tr className="bg-gray-100 dark:bg-gray-700 border-t-2 border-gray-300 dark:border-gray-600">
+                <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">
+                  Grand Total
+                </td>
+                <td className="px-4 py-3 font-bold text-gray-900 dark:text-white tabular-nums">
+                  ₹{grandTotalFormatted}
+                </td>
+                <td></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
