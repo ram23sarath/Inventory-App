@@ -104,6 +104,7 @@ export interface User {
   id: string;
   email: string | undefined;
   created_at: string;
+  isAdmin?: boolean;
 }
 
 // API Response types

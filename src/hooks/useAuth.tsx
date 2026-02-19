@@ -38,16 +38,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       id: session.user.id,
       email: session.user.email,
       created_at: session.user.created_at,
+      isAdmin: false, // Default to false, will be updated
     };
   }, []);
 
   useEffect(() => {
     // Check current session
-    supabase.auth.getSession().then(({ data: { session } }: any) => {
+    supabase.auth.getSession().then(async ({ data: { session } }: any) => {
+      let user = mapUser(session);
+      if (user) {
+        // Check if admin
+        const { data: adminData } = await supabase
+          .from('admins')
+          .select('user_id')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (adminData) {
+          user = { ...user, isAdmin: true };
+        }
+      }
+
       setState({
         isLoading: false,
         isAuthenticated: !!session,
-        user: mapUser(session),
+        user,
         error: null,
       });
     });
@@ -55,11 +70,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
+    } = supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
+      let user = mapUser(session);
+      if (user) {
+        // Check if admin
+        const { data: adminData } = await supabase
+          .from('admins')
+          .select('user_id')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (adminData) {
+          user = { ...user, isAdmin: true };
+        }
+      }
+
       setState({
         isLoading: false,
         isAuthenticated: !!session,
-        user: mapUser(session),
+        user,
         error: null,
       });
     });

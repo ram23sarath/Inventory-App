@@ -246,7 +246,7 @@ export function InventoryList() {
                       {sectionItems.length !== 1 ? "s" : ""})
                     </span>
                     <span className="text-lg font-bold text-gray-900 dark:text-white">
-                      $
+                      ₹
                       {(
                         sectionItems.reduce(
                           (sum, item) => sum + item.price_cents,

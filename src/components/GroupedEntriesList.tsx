@@ -85,9 +85,8 @@ export function GroupedEntriesList({
                       className="px-4 py-2 font-semibold text-blue-900 dark:text-blue-100"
                     >
                       <div className="flex justify-between items-center gap-2 flex-wrap">
-                        <span className="truncate">{formattedDate}</span>
                         <span className="text-blue-600 dark:text-blue-300 flex-shrink-0">
-                          ${totalFormatted}
+                          ₹{totalFormatted}
                         </span>
                       </div>
                     </td>
@@ -101,7 +100,7 @@ export function GroupedEntriesList({
                         {item.name}
                       </td>
                       <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white whitespace-nowrap">
-                        ${(item.price_cents / 100).toFixed(2)}
+                        ₹{(item.price_cents / 100).toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex justify-end gap-1">

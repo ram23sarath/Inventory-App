@@ -31,11 +31,16 @@ export function useItems(): UseItemsReturn {
     if (!user) return;
 
     try {
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from('items')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
+
+      if (!user.isAdmin) {
+        query = query.eq('user_id', user.id);
+      }
+
+      const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
 
@@ -49,7 +54,7 @@ export function useItems(): UseItemsReturn {
       setError(null);
     } catch (e) {
       console.error('Failed to fetch items:', e);
-      
+
       // Try to load from cache
       const cached = itemsCache.get();
       if (cached) {
@@ -58,7 +63,7 @@ export function useItems(): UseItemsReturn {
           syncStatus: 'synced' as const,
         })));
       }
-      
+
       setError('Failed to load items. Showing cached data.');
     } finally {
       setIsLoading(false);
@@ -82,7 +87,7 @@ export function useItems(): UseItemsReturn {
           event: '*',
           schema: 'public',
           table: 'items',
-          filter: `user_id=eq.${user.id}`,
+          ...(user.isAdmin ? {} : { filter: `user_id=eq.${user.id}` }),
         },
         (payload: any) => {
           if (payload.eventType === 'INSERT') {
@@ -146,7 +151,7 @@ export function useItems(): UseItemsReturn {
     if (!user || !networkStatus.isOnline()) return;
 
     const queue = offlineQueue.getQueue();
-    
+
     for (const operation of queue) {
       try {
         await processOperation(operation, user.id);
@@ -154,7 +159,7 @@ export function useItems(): UseItemsReturn {
       } catch (e) {
         console.error('Failed to sync operation:', e);
         offlineQueue.incrementRetry(operation.id);
-        
+
         if (operation.retryCount >= 3) {
           // Mark as error after 3 retries
           setItems(prev =>
@@ -265,13 +270,13 @@ export function useItems(): UseItemsReturn {
         }
       } catch (e) {
         console.error('Failed to add item:', e);
-        
+
         // Queue for later sync
         offlineQueue.enqueue({
           type: 'insert',
           data: { name, price_cents: priceCents, section, sub_section: subSection, item_date: itemDate },
         });
-        
+
         setItems(prev =>
           prev.map(item =>
             item.localId === localId
@@ -279,7 +284,7 @@ export function useItems(): UseItemsReturn {
               : item
           )
         );
-        
+
         setPendingCount(offlineQueue.getPendingCount());
         setError('Failed to add item. Will retry when online.');
       }
@@ -328,14 +333,14 @@ export function useItems(): UseItemsReturn {
         );
       } catch (e) {
         console.error('Failed to update item:', e);
-        
+
         // Rollback
         setItems(prev =>
           prev.map(item =>
             item.id === id ? originalItem : item
           )
         );
-        
+
         setError('Failed to update item.');
       }
     } else {
@@ -369,7 +374,7 @@ export function useItems(): UseItemsReturn {
         if (deleteError) throw deleteError;
       } catch (e) {
         console.error('Failed to delete item:', e);
-        
+
         // Rollback
         setItems(prev => [...prev, originalItem]);
         setError('Failed to delete item.');
