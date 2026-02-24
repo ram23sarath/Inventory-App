@@ -17,6 +17,20 @@ interface UseItemsReturn {
   retrySync: () => Promise<void>;
 }
 
+type SupabaseLikeError = {
+  code?: string;
+  message?: string;
+};
+
+function isMissingRelationError(error: unknown, tableName: string): boolean {
+  const supabaseError = error as SupabaseLikeError;
+  const message = supabaseError?.message ?? '';
+  return (
+    supabaseError?.code === '42P01' ||
+    message.includes(`relation \"public.${tableName}\" does not exist`)
+  );
+}
+
 export function useItems(): UseItemsReturn {
   const { user } = useAuth();
   const [items, setItems] = useState<ItemWithStatus[]>([]);
@@ -57,14 +71,23 @@ export function useItems(): UseItemsReturn {
 
       // Try to load from cache
       const cached = itemsCache.get();
-      if (cached) {
+      const hasCachedItems = !!(cached && Array.isArray(cached.items) && cached.items.length > 0);
+
+      if (hasCachedItems && cached) {
         setItems(cached.items.map((item) => ({
           ...(item as Item),
           syncStatus: 'synced' as const,
         })));
-      }
+        setError('Database fetch failed. Showing cached data.');
+      } else {
+        setItems([]);
 
-      setError('Failed to load items. Showing cached data.');
+        if (isMissingRelationError(e, 'items')) {
+          setError('Database table public.items is missing in the configured Supabase project. Run schema setup or switch to the correct project.');
+        } else {
+          setError('Failed to load items from database, and no cached data is available.');
+        }
+      }
     } finally {
       setIsLoading(false);
     }

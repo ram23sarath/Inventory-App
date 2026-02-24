@@ -24,6 +24,14 @@ document.addEventListener("touchmove", onTouchMove as EventListener, {
   passive: false,
 });
 
+// One-time migration step: the service worker runtime cache was renamed 
+// from 'supabase-cache' to 'supabase-data-cache'. Remove the orphaned cache.
+if ('caches' in window) {
+  caches.delete('supabase-cache').catch(() => {
+    // silently fail if there's an issue accessing caches
+  });
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />

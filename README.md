@@ -53,10 +53,11 @@ npm install
 
 1. Create a new project at [supabase.com](https://supabase.com)
 
-2. Run the database schema in SQL Editor:
+2. Run the database setup SQL in this exact order in Supabase SQL Editor:
 
 ```sql
--- Copy contents of supabase/schema.sql and run in Supabase SQL Editor
+-- 1) Copy contents of supabase/schema.sql and run
+-- 2) Copy contents of supabase/migrations/setup_admins.sql and run
 ```
 
 Or copy the SQL below:
@@ -115,11 +116,18 @@ create policy "Users can delete their own items"
   using (auth.uid() = user_id);
 ```
 
-3. Enable Realtime for the items table:
+3. Verify required tables exist:
+
+```sql
+select to_regclass('public.items') as items_table;
+select to_regclass('public.admins') as admins_table;
+```
+
+4. Enable Realtime for the items table:
    - Go to Database → Replication
    - Enable realtime for `public.items` table
 
-4. Get your API credentials:
+5. Get your API credentials:
    - Go to Project Settings → API
    - Copy `URL` and `anon public` key
 
@@ -133,6 +141,8 @@ cp .env.example .env
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ```
+
+Important: make sure the URL and key are for the same Supabase project where you ran both SQL files above.
 
 ### 4. Run Development Server
 
