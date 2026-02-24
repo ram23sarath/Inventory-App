@@ -57,6 +57,7 @@ export function InventoryList() {
   }
 
   const hasItems = items.length > 0;
+  const nameSuggestions = Array.from(new Set(items.map((item) => item.name))).sort();
   // Filter items by current section and date
   const sectionItems = items.filter(
     (item) => item.section === section && item.item_date === selectedDate,
@@ -243,6 +244,7 @@ export function InventoryList() {
                           item={item}
                           onUpdate={updateItem}
                           onDelete={deleteItem}
+                          nameSuggestions={nameSuggestions}
                         />
                       ))}
                     </tbody>
@@ -318,6 +320,7 @@ export function InventoryList() {
                   title="All Income Entries"
                   onUpdate={updateItem}
                   onDelete={deleteItem}
+                  nameSuggestions={nameSuggestions}
                 />
               ) : (
                 <div className="mx-4 mt-4 text-center py-12">
@@ -389,6 +392,7 @@ export function InventoryList() {
                     title="General Expenses"
                     onUpdate={updateItem}
                     onDelete={deleteItem}
+                    nameSuggestions={nameSuggestions}
                   />
                 )}
                 {viewFilters.buttermilk && (
@@ -401,6 +405,7 @@ export function InventoryList() {
                     title="Butter Milk"
                     onUpdate={updateItem}
                     onDelete={deleteItem}
+                    nameSuggestions={nameSuggestions}
                   />
                 )}
                 {viewFilters.chips && (
@@ -413,6 +418,7 @@ export function InventoryList() {
                     title="Chips"
                     onUpdate={updateItem}
                     onDelete={deleteItem}
+                    nameSuggestions={nameSuggestions}
                   />
                 )}
               </>

@@ -6,3 +6,4 @@ export { ItemRow } from './ItemRow';
 export { EmptyState } from './EmptyState';
 export { TotalBar } from './TotalBar';
 export { Spinner } from './Spinner';
+export { ConfirmDialog } from './ConfirmDialog';

@@ -8,18 +8,21 @@ import {
 import { formatCurrency, formatDecimal } from "@/lib/currency";
 import type { ItemWithStatus } from "@/types";
 import { Spinner } from "./Spinner";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 interface ItemRowProps {
   item: ItemWithStatus;
   onUpdate: (id: string, name: string, priceCents: number) => void;
   onDelete: (id: string) => void;
+  nameSuggestions?: string[];
 }
 
-export function ItemRow({ item, onUpdate, onDelete }: ItemRowProps) {
+export function ItemRow({ item, onUpdate, onDelete, nameSuggestions = [] }: ItemRowProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(item.name);
   const [editPrice, setEditPrice] = useState(formatDecimal(item.price_cents));
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Focus input when editing starts
@@ -94,6 +97,11 @@ export function ItemRow({ item, onUpdate, onDelete }: ItemRowProps) {
   };
 
   const handleDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = () => {
+    setShowDeleteConfirm(false);
     setIsDeleting(true);
     onDelete(item.id);
   };
@@ -103,10 +111,24 @@ export function ItemRow({ item, onUpdate, onDelete }: ItemRowProps) {
 
   if (isEditing) {
     return (
-      <tr className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+      <>
+        <ConfirmDialog
+          isOpen={showDeleteConfirm}
+          title="Delete Item"
+          message={`Are you sure you want to delete "${item.name}"? This cannot be undone.`}
+          confirmLabel="Delete"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+        <tr className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50">
         <td colSpan={3} className="px-4 py-3">
           <form onSubmit={handleSaveEdit} onKeyDown={handleKeyDown}>
             <div className="flex flex-col sm:flex-row gap-3">
+              <datalist id={`item-names-${item.id}`}>
+                {nameSuggestions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
               <input
                 ref={nameInputRef}
                 type="text"
@@ -115,6 +137,7 @@ export function ItemRow({ item, onUpdate, onDelete }: ItemRowProps) {
                 className="input flex-1"
                 placeholder="Item name"
                 aria-label="Edit item name"
+                list={`item-names-${item.id}`}
                 required
               />
               <div className="relative sm:w-32">
@@ -154,12 +177,22 @@ export function ItemRow({ item, onUpdate, onDelete }: ItemRowProps) {
           </form>
         </td>
       </tr>
+      </>
     );
   }
 
   return (
-    <tr
-      className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
+    <>
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Item"
+        message={`Are you sure you want to delete "${item.name}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+      <tr
+        className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
         isPending ? "opacity-70 bg-gray-50 dark:bg-gray-800" : ""
       } ${hasError ? "bg-red-50 dark:bg-red-900/20" : ""}`}
       role="row"
@@ -243,5 +276,6 @@ export function ItemRow({ item, onUpdate, onDelete }: ItemRowProps) {
         </div>
       </td>
     </tr>
+    </>
   );
 }
