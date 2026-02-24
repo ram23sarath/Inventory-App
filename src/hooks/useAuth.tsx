@@ -8,7 +8,7 @@ import {
 } from "react";
 import { supabase } from "@/lib/supabase";
 import type { AuthState, User } from "@/types";
-import type { AuthError } from "@supabase/supabase-js";
+import type { AuthError, AuthChangeEvent, Session } from "@supabase/supabase-js";
 
 interface AuthContextValue extends AuthState {
   signIn: (
@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     error: null,
   });
 
-  const mapUser = useCallback((authUser: any): User | null => {
+  const mapUser = useCallback((authUser: Session["user"] | null): User | null => {
     if (!authUser) return null;
     return {
       id: authUser.id,
@@ -86,31 +86,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    let settled = false;
-
-    // Safety timeout: if auth check hasn't resolved after 10s, stop loading
-    const timeoutId = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        console.error('[Auth] Session check timed out after 10s');
-        setState({
-          isLoading: false,
-          isAuthenticated: false,
-          user: null,
-          error: 'Authentication timed out. Please refresh or check your connection.',
-        });
-      }
-    }, 10_000);
-
-    // Check current user securely
-    supabase.auth.getUser()
-      .then(async ({ data: { user: authUser }, error }: any) => {
-        if (settled) return;
-
+    // getSession reads from localStorage — instant, no network round-trip.
+    // onAuthStateChange handles token auto-refresh in the background.
+    supabase.auth.getSession()
+      .then(async ({ data: { session }, error }: { data: { session: Session | null }; error: AuthError | null }) => {
         if (error) {
-          settled = true;
-          clearTimeout(timeoutId);
-          console.error('[Auth] getUser failed:', error);
+          console.error('[Auth] getSession failed:', error);
           setState({
             isLoading: false,
             isAuthenticated: false,
@@ -120,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        const authUser = session?.user ?? null;
         let user = mapUser(authUser);
         if (user) {
           const isAdmin = await checkIfAdmin(user.id);
@@ -128,11 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        if (settled) return;
-
-        settled = true;
-        clearTimeout(timeoutId);
-        console.log('[Auth] User check complete, authenticated:', !!authUser);
+        console.log('[Auth] Session check complete, authenticated:', !!authUser);
         setState({
           isLoading: false,
           isAuthenticated: !!authUser,
@@ -140,11 +118,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           error: null,
         });
       })
-      .catch((err: any) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeoutId);
-        console.error('[Auth] getUser promise rejected:', err);
+      .catch((err: Error) => {
+        console.error('[Auth] getSession promise rejected:', err);
         setState({
           isLoading: false,
           isAuthenticated: false,
@@ -153,15 +128,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       });
 
-    // Listen for auth changes
+    // Listen for auth changes (sign in, sign out, token refresh)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-      let user = mapUser(session?.user);
+    } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
+      // Skip events that don't affect user identity or need UI updates
+      if (event === 'TOKEN_REFRESHED' || event === 'MFA_CHALLENGE_VERIFIED') {
+        return;
+      }
+
+      let user = mapUser(session?.user ?? null);
       if (user) {
-        Promise.resolve().then(() => checkIfAdmin(user!.id).then(isAdmin => {
+        try {
+          const isAdmin = await checkIfAdmin(user.id);
           if (isAdmin) {
-            user = { ...user!, isAdmin: true };
+            user = { ...user, isAdmin: true };
           }
           console.log('[Auth] Auth state changed, authenticated:', true);
           setState({
@@ -170,7 +151,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             user,
             error: null,
           });
-        }));
+        } catch (err) {
+          console.error('[Auth] Admin check failed in state change:', err);
+          // Still set authenticated, but default to non-admin
+          setState({
+            isLoading: false,
+            isAuthenticated: true,
+            user,
+            error: null,
+          });
+        }
       } else {
         console.log('[Auth] Auth state changed, authenticated:', false);
         setState({
@@ -183,7 +173,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => {
-      clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, [mapUser]);
