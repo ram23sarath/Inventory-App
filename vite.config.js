@@ -57,6 +57,8 @@ var viteConfig = defineConfig({
                         handler: 'NetworkFirst',
                         options: {
                             cacheName: 'supabase-data-cache',
+                            // Fall back to cache after 10 s — prevents indefinite hangs on slow Android networks
+                            networkTimeoutSeconds: 10,
                             expiration: {
                                 maxEntries: 100,
                                 maxAgeSeconds: 60 * 60 * 24 // 24 hours

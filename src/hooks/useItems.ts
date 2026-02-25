@@ -5,6 +5,16 @@ import { useAuth } from './useAuth';
 import type { Item, ItemWithStatus, QueuedOperation } from '@/types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
+/** Wraps a promise with a timeout; throws if time expires. */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timeout after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 interface UseItemsReturn {
   items: ItemWithStatus[];
   isLoading: boolean;
@@ -54,7 +64,9 @@ export function useItems(): UseItemsReturn {
         query = query.eq('user_id', user.id);
       }
 
-      const { data, error: fetchError } = await query;
+      // Wrap query with 15-second timeout (Android-friendly on slow networks)
+      const result = await withTimeout(query as any, 15000, 'Items fetch') as any;
+      const { data, error: fetchError } = result;
 
       if (fetchError) throw fetchError;
 
@@ -142,7 +154,20 @@ export function useItems(): UseItemsReturn {
           }
         }
       )
-      .subscribe();
+      .subscribe((status: any, err: any) => {
+        if (err) {
+          // Genuine subscription rejection from the server (e.g. table not in
+          // realtime publication, RLS blocks the channel).  Log it but do NOT
+          // overwrite a successfully-loaded data set — only set the error when
+          // there is nothing to show the user.
+          console.error('[useItems] Realtime subscription error:', err);
+          return;
+        }
+
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[useItems] Realtime channel status:', status);
+        }
+      });
 
     channelRef.current = channel;
 

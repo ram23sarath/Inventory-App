@@ -22,5 +22,11 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     params: {
       eventsPerSecond: 10,
     },
+    // Detect stale WebSocket connections faster (Android drops connections silently).
+    // Default heartbeat is 30 s — halving it means dead connections are found in ~15 s.
+    heartbeatIntervalMs: 15000,
+    // Channel reply timeout: how long to wait for a push/join ack before giving up.
+    // Default is 10 s; 15 s gives slow mobile networks a bit more room.
+    timeout: 15000,
   },
 }) as any;

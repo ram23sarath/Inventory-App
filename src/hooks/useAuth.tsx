@@ -25,6 +25,9 @@ interface AuthContextValue extends AuthState {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 let hasLoggedMissingAdminsRelation = false;
+let hasLoggedAdminNetworkIssue = false;
+
+const ADMIN_CACHE_PREFIX = 'inventory-admin:';
 
 /** Maximum ms to wait for any single auth operation before giving up. */
 const AUTH_TIMEOUT_MS = 5000;
@@ -52,16 +55,32 @@ function clearAuthStorage(): void {
 }
 
 /**
- * Full PWA/SPA data purge.
- * Clears localStorage, sessionStorage, all Cache API caches, and unregisters
- * every service worker, then reloads the page for a completely fresh start.
- * Exposed for use on the login and loading screens so users can self-recover
- * from a stuck loading state without manually digging through DevTools.
+ * Full PWA/SPA data purge for Android and desktop.
+ * Clears localStorage, sessionStorage, IndexedDB, all Cache API caches,
+ * unregisters every service worker, then force-reloads without cache.
  */
 export async function purgeLocalData(): Promise<void> {
+  // Clear standard storage
   try { localStorage.clear(); } catch { /* ignore */ }
   try { sessionStorage.clear(); } catch { /* ignore */ }
 
+  // Clear IndexedDB (where Supabase realtime state is stored)
+  try {
+    const dbs = await indexedDB.databases?.() ?? [];
+    for (const db of dbs) {
+      if (db.name) {
+        const request = indexedDB.deleteDatabase(db.name);
+        await new Promise<void>((resolve, reject) => {
+          request.onsuccess = () => resolve();
+          request.onerror = reject;
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[Purge] IndexedDB clearing failed:', err);
+  }
+
+  // Unregister service workers
   if ('serviceWorker' in navigator) {
     try {
       const registrations = await navigator.serviceWorker.getRegistrations();
@@ -69,6 +88,7 @@ export async function purgeLocalData(): Promise<void> {
     } catch { /* ignore */ }
   }
 
+  // Delete all Cache API caches
   if ('caches' in window) {
     try {
       const names = await caches.keys();
@@ -76,7 +96,13 @@ export async function purgeLocalData(): Promise<void> {
     } catch { /* ignore */ }
   }
 
-  try { window.location.reload(); } catch { /* ignore in non-browser environments */ }
+  // Force reload without cache: bypass service worker and HTTP cache
+  try {
+    // Add cache-busting parameter and disable beforeunload handlers
+    window.location.href = window.location.href + '?nocache=' + Date.now();
+    // Fallback for when href doesn't work
+    setTimeout(() => { window.location.reload(); }, 100);
+  } catch { /* ignore */ }
 }
 function isMissingAdminsRelation(error: unknown): boolean {
   const supabaseError = error as { code?: string; message?: string };
@@ -86,38 +112,109 @@ function isMissingAdminsRelation(error: unknown): boolean {
   );
 }
 
-async function checkIfAdmin(userId: string): Promise<boolean> {
-  try {
-    const { data: adminData, error: adminError } = await supabase
-      .from('admins')
-      .select('user_id')
-      .eq('user_id', userId)
-      .single();
+function isTransientAdminFetchError(error: unknown): boolean {
+  const maybeError = error as { message?: string; details?: string; code?: string; status?: number };
+  const message = `${maybeError?.message ?? ''} ${maybeError?.details ?? ''}`.toLowerCase();
+  return (
+    message.includes('failed to fetch') ||
+    message.includes('err_failed') ||
+    message.includes('cors') ||
+    maybeError?.status === 525
+  );
+}
 
-    if (adminError && adminError.code !== 'PGRST116') {
-      if (isMissingAdminsRelation(adminError)) {
+function getCachedAdminStatus(userId: string): boolean | null {
+  try {
+    const raw = localStorage.getItem(`${ADMIN_CACHE_PREFIX}${userId}`);
+    if (raw === 'true') return true;
+    if (raw === 'false') return false;
+  } catch {
+    // localStorage may be unavailable; ignore.
+  }
+  return null;
+}
+
+function setCachedAdminStatus(userId: string, isAdmin: boolean): void {
+  try {
+    localStorage.setItem(`${ADMIN_CACHE_PREFIX}${userId}`, String(isAdmin));
+  } catch {
+    // localStorage may be unavailable; ignore.
+  }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function checkIfAdmin(userId: string): Promise<boolean | null> {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const { data: adminData, error: adminError } = await supabase
+        .from('admins')
+        .select('user_id')
+        .eq('user_id', userId)
+        .single();
+
+      // PGRST116 = "no rows found" — expected for non-admins
+      if (adminError?.code === 'PGRST116') {
+        setCachedAdminStatus(userId, false);
+        return false;
+      }
+
+      if (adminError) {
+        if (isMissingAdminsRelation(adminError)) {
+          if (!hasLoggedMissingAdminsRelation) {
+            console.warn('[Auth] Admin table public.admins not found. Continuing as non-admin.');
+            hasLoggedMissingAdminsRelation = true;
+          }
+          setCachedAdminStatus(userId, false);
+          return false;
+        }
+
+        if (isTransientAdminFetchError(adminError) && attempt < 2) {
+          await delay(350);
+          continue;
+        }
+
+        throw adminError;
+      }
+
+      const isAdmin = !!adminData;
+      setCachedAdminStatus(userId, isAdmin);
+      return isAdmin;
+    } catch (adminErr) {
+      if (isMissingAdminsRelation(adminErr)) {
         if (!hasLoggedMissingAdminsRelation) {
           console.warn('[Auth] Admin table public.admins not found. Continuing as non-admin.');
           hasLoggedMissingAdminsRelation = true;
         }
+        setCachedAdminStatus(userId, false);
         return false;
       }
-      // PGRST116 = "no rows found" — expected for non-admins
-      console.warn('[Auth] Admin check error:', adminError);
-    }
 
-    return !!(adminData && !adminError);
-  } catch (adminErr) {
-    if (isMissingAdminsRelation(adminErr)) {
-      if (!hasLoggedMissingAdminsRelation) {
-        console.warn('[Auth] Admin table public.admins not found. Continuing as non-admin.');
-        hasLoggedMissingAdminsRelation = true;
+      if (isTransientAdminFetchError(adminErr)) {
+        if (attempt < 2) {
+          await delay(350);
+          continue;
+        }
+
+        const cachedAdmin = getCachedAdminStatus(userId);
+        if (!hasLoggedAdminNetworkIssue) {
+          console.warn('[Auth] Admin check temporarily unreachable. Using cached role if available.');
+          hasLoggedAdminNetworkIssue = true;
+        }
+        // If cache says true, trust it. If cache is false/missing, treat as unknown
+        // to avoid downgrading an admin due to transient network issues.
+        return cachedAdmin === true ? true : null;
       }
+
+      console.warn('[Auth] Admin check failed, defaulting to non-admin:', adminErr);
       return false;
     }
-    console.warn('[Auth] Admin check failed, defaulting to non-admin:', adminErr);
-    return false;
   }
+
+  const cachedAdmin = getCachedAdminStatus(userId);
+  return cachedAdmin === true ? true : null;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -131,6 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Prevent the INITIAL_SESSION handler from running again after a subsequent
   // SIGNED_IN / SIGNED_OUT overwrites the state first.
   const initialSessionHandled = useRef(false);
+  const lastKnownAdminByUserRef = useRef<Map<string, boolean>>(new Map());
 
   const mapUser = useCallback((authUser: Session["user"] | null): User | null => {
     if (!authUser) return null;
@@ -143,6 +241,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Wall-clock start time — used by the visibilitychange handler below.
+    // Unlike setTimeout, Date.now() is not paused when Android suspends the tab.
+    const loadingStartedAt = Date.now();
+
     // Safety net: force isLoading:false if something unexpectedly hangs.
     const safetyTimer = setTimeout(() => {
       setState((prev) => {
@@ -151,6 +253,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { ...prev, isLoading: false };
       });
     }, LOADING_SAFETY_TIMEOUT_MS);
+
+    // Android app-suspension recovery: when Android freezes the app (low memory
+    // or screen off), JS timers are paused so safetyTimer may never fire. When
+    // the user returns to the app, visibilitychange fires and we use the
+    // wall-clock elapsed time (which was NOT paused) to decide whether to force
+    // isLoading:false and let the user proceed to the login screen.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      setState((prev) => {
+        if (!prev.isLoading) return prev;
+        const elapsed = Date.now() - loadingStartedAt;
+        if (elapsed >= LOADING_SAFETY_TIMEOUT_MS) {
+          console.warn(`[Auth] App resumed after ${elapsed}ms suspension while loading — forcing isLoading:false.`);
+          return { ...prev, isLoading: false };
+        }
+        return prev;
+      });
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Single source of truth: onAuthStateChange fires INITIAL_SESSION immediately
     // on subscription (Supabase JS v2), so we no longer need a separate getSession()
@@ -171,6 +293,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (event === 'SIGNED_OUT') {
           clearAuthStorage();
         }
+        // React StrictMode guard: INITIAL_SESSION fires twice in dev (mount →
+        // unmount → remount). The ref survives the cycle, so if it's already
+        // true we know this is the duplicate and can safely skip it.
+        if (event === 'INITIAL_SESSION' && initialSessionHandled.current) return;
         initialSessionHandled.current = true;
         console.log('[Auth] No active session — showing login.');
         setState({
@@ -185,6 +311,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // INITIAL_SESSION with a valid session: resolve loading immediately while
       // the admin check runs in the background to avoid an extra flicker.
       if (event === 'INITIAL_SESSION') {
+        // StrictMode guard: skip the duplicate INITIAL_SESSION from the second mount.
+        if (initialSessionHandled.current) return;
         initialSessionHandled.current = true;
       }
 
@@ -194,7 +322,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (user) {
         // Wrap admin check with a timeout so a slow/hanging DB query never blocks
         // the loading screen indefinitely.
-        const isAdmin = await withTimeout(checkIfAdmin(user.id), AUTH_TIMEOUT_MS, false);
+        const adminCheckResult = await withTimeout<boolean | null>(
+          checkIfAdmin(user.id),
+          AUTH_TIMEOUT_MS,
+          null,
+        );
+
+        const previouslyKnownAdmin = lastKnownAdminByUserRef.current.get(user.id);
+        const cachedAdmin = getCachedAdminStatus(user.id);
+        const isAdmin =
+          adminCheckResult ??
+          previouslyKnownAdmin ??
+          (cachedAdmin === true);
+
+        lastKnownAdminByUserRef.current.set(user.id, isAdmin);
+
         if (isAdmin) {
           user = { ...user, isAdmin: true };
         }
@@ -218,6 +360,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       clearTimeout(safetyTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       subscription.unsubscribe();
     };
   }, [mapUser]);
