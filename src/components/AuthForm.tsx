@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, purgeLocalData } from "@/hooks/useAuth";
 import { Spinner } from "./Spinner";
 
 export function AuthForm() {
@@ -10,6 +10,22 @@ export function AuthForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [purging, setPurging] = useState(false);
+  const [purgeError, setPurgeError] = useState<string | null>(null);
+
+  const handlePurge = async () => {
+    setPurging(true);
+    setPurgeError(null);
+    try {
+      await purgeLocalData(); // reloads the page, so the finally below never runs on success
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Failed to clear local data';
+      console.error('[AuthForm] Purge failed:', err);
+      setPurgeError(errMsg);
+    } finally {
+      setPurging(false);
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -208,6 +224,38 @@ export function AuthForm() {
             </button>
           </p>
         </form>
+
+        {/* PWA / SPA recovery — clears all local state so the user can start fresh */}
+        <div className="mt-5 text-center">
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">
+            Stuck on a loading screen or seeing stale data?
+          </p>
+          {purgeError && (
+            <div className="mb-2 p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+              <p className="text-xs text-red-600 dark:text-red-400">{purgeError}</p>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={handlePurge}
+            disabled={purging || isLoading}
+            className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors disabled:opacity-50"
+          >
+            {purging ? (
+              <>
+                <Spinner size="sm" />
+                <span>Clearing…</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                <span>Clear local data &amp; reload</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import { supabase } from "@/lib/supabase";
@@ -25,6 +26,58 @@ interface AuthContextValue extends AuthState {
 const AuthContext = createContext<AuthContextValue | null>(null);
 let hasLoggedMissingAdminsRelation = false;
 
+/** Maximum ms to wait for any single auth operation before giving up. */
+const AUTH_TIMEOUT_MS = 5000;
+/** Global safety net: if isLoading is still true after this, force it false. */
+const LOADING_SAFETY_TIMEOUT_MS = 8000;
+
+/** Races a promise against a timeout; resolves to `fallback` if time expires. */
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
+/** Removes all Supabase auth entries from localStorage so a fresh login is possible. */
+function clearAuthStorage(): void {
+  try {
+    const keysToRemove = Object.keys(localStorage).filter(
+      (key) => key.startsWith('sb-') || key.toLowerCase().includes('supabase'),
+    );
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+  } catch {
+    // localStorage may be unavailable in some environments; safe to ignore.
+  }
+}
+
+/**
+ * Full PWA/SPA data purge.
+ * Clears localStorage, sessionStorage, all Cache API caches, and unregisters
+ * every service worker, then reloads the page for a completely fresh start.
+ * Exposed for use on the login and loading screens so users can self-recover
+ * from a stuck loading state without manually digging through DevTools.
+ */
+export async function purgeLocalData(): Promise<void> {
+  try { localStorage.clear(); } catch { /* ignore */ }
+  try { sessionStorage.clear(); } catch { /* ignore */ }
+
+  if ('serviceWorker' in navigator) {
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((r) => r.unregister()));
+    } catch { /* ignore */ }
+  }
+
+  if ('caches' in window) {
+    try {
+      const names = await caches.keys();
+      await Promise.all(names.map((name) => caches.delete(name)));
+    } catch { /* ignore */ }
+  }
+
+  try { window.location.reload(); } catch { /* ignore in non-browser environments */ }
+}
 function isMissingAdminsRelation(error: unknown): boolean {
   const supabaseError = error as { code?: string; message?: string };
   return (
@@ -75,94 +128,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     error: null,
   });
 
+  // Prevent the INITIAL_SESSION handler from running again after a subsequent
+  // SIGNED_IN / SIGNED_OUT overwrites the state first.
+  const initialSessionHandled = useRef(false);
+
   const mapUser = useCallback((authUser: Session["user"] | null): User | null => {
     if (!authUser) return null;
     return {
       id: authUser.id,
       email: authUser.email,
       created_at: authUser.created_at,
-      isAdmin: false, // Default to false, will be updated
+      isAdmin: false,
     };
   }, []);
 
   useEffect(() => {
-    // getSession reads from localStorage — instant, no network round-trip.
-    // onAuthStateChange handles token auto-refresh in the background.
-    supabase.auth.getSession()
-      .then(async ({ data: { session }, error }: { data: { session: Session | null }; error: AuthError | null }) => {
-        if (error) {
-          console.error('[Auth] getSession failed:', error);
-          setState({
-            isLoading: false,
-            isAuthenticated: false,
-            user: null,
-            error: error.message || 'Failed to check authentication. Please refresh.',
-          });
-          return;
-        }
-
-        const authUser = session?.user ?? null;
-        let user = mapUser(authUser);
-        if (user) {
-          const isAdmin = await checkIfAdmin(user.id);
-          if (isAdmin) {
-            user = { ...user, isAdmin: true };
-          }
-        }
-
-        console.log('[Auth] Session check complete, authenticated:', !!authUser);
-        setState({
-          isLoading: false,
-          isAuthenticated: !!authUser,
-          user,
-          error: null,
-        });
-      })
-      .catch((err: Error) => {
-        console.error('[Auth] getSession promise rejected:', err);
-        setState({
-          isLoading: false,
-          isAuthenticated: false,
-          user: null,
-          error: 'Failed to check authentication. Please refresh.',
-        });
+    // Safety net: force isLoading:false if something unexpectedly hangs.
+    const safetyTimer = setTimeout(() => {
+      setState((prev) => {
+        if (!prev.isLoading) return prev;
+        console.warn('[Auth] Safety timeout reached — forcing isLoading:false. Check network or admin table.');
+        return { ...prev, isLoading: false };
       });
+    }, LOADING_SAFETY_TIMEOUT_MS);
 
-    // Listen for auth changes (sign in, sign out, token refresh)
+    // Single source of truth: onAuthStateChange fires INITIAL_SESSION immediately
+    // on subscription (Supabase JS v2), so we no longer need a separate getSession()
+    // call. This eliminates the race condition where both paths called checkIfAdmin()
+    // concurrently and either could hang indefinitely.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
-      // Skip events that don't affect user identity or need UI updates
+      // TOKEN_REFRESHED — Supabase silently rotated the token; no UI change needed.
+      // MFA_CHALLENGE_VERIFIED — internal MFA step; session will follow separately.
       if (event === 'TOKEN_REFRESHED' || event === 'MFA_CHALLENGE_VERIFIED') {
         return;
       }
 
-      let user = mapUser(session?.user ?? null);
-      if (user) {
-        try {
-          const isAdmin = await checkIfAdmin(user.id);
-          if (isAdmin) {
-            user = { ...user, isAdmin: true };
-          }
-          console.log('[Auth] Auth state changed, authenticated:', true);
-          setState({
-            isLoading: false,
-            isAuthenticated: true,
-            user,
-            error: null,
-          });
-        } catch (err) {
-          console.error('[Auth] Admin check failed in state change:', err);
-          // Still set authenticated, but default to non-admin
-          setState({
-            isLoading: false,
-            isAuthenticated: true,
-            user,
-            error: null,
-          });
+      // SIGNED_OUT or session expired: wipe stale auth data so the user can log
+      // in cleanly without leftover corrupt/expired tokens.
+      if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
+        if (event === 'SIGNED_OUT') {
+          clearAuthStorage();
         }
+        initialSessionHandled.current = true;
+        console.log('[Auth] No active session — showing login.');
+        setState({
+          isLoading: false,
+          isAuthenticated: false,
+          user: null,
+          error: null,
+        });
+        return;
+      }
+
+      // INITIAL_SESSION with a valid session: resolve loading immediately while
+      // the admin check runs in the background to avoid an extra flicker.
+      if (event === 'INITIAL_SESSION') {
+        initialSessionHandled.current = true;
+      }
+
+      const authUser = session?.user ?? null;
+      let user = mapUser(authUser);
+
+      if (user) {
+        // Wrap admin check with a timeout so a slow/hanging DB query never blocks
+        // the loading screen indefinitely.
+        const isAdmin = await withTimeout(checkIfAdmin(user.id), AUTH_TIMEOUT_MS, false);
+        if (isAdmin) {
+          user = { ...user, isAdmin: true };
+        }
+        console.log('[Auth] Authenticated as', user.email, '| admin:', isAdmin);
+        setState({
+          isLoading: false,
+          isAuthenticated: true,
+          user,
+          error: null,
+        });
       } else {
-        console.log('[Auth] Auth state changed, authenticated:', false);
+        console.log('[Auth] Auth state changed — not authenticated.');
         setState({
           isLoading: false,
           isAuthenticated: false,
@@ -173,6 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => {
+      clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
   }, [mapUser]);
@@ -214,6 +259,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     setState((prev) => ({ ...prev, isLoading: true }));
     await supabase.auth.signOut();
+    clearAuthStorage();
     setState({
       isLoading: false,
       isAuthenticated: false,
