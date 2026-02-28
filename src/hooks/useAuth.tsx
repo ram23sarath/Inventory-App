@@ -158,14 +158,21 @@ export function setLoadingPhase(phase: string): void {
 async function checkIfAdmin(userId: string): Promise<boolean | null> {
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
+      console.log(`[Auth] Admin check attempt ${attempt}/2 for ${userId}`);
+      const checkStartMs = Date.now();
+
       const { data: adminData, error: adminError } = await supabase
         .from('admins')
         .select('user_id')
         .eq('user_id', userId)
         .single();
 
+      const elapsed = Date.now() - checkStartMs;
+      console.log(`[Auth] Admin query completed in ${elapsed}ms, error: ${adminError?.code ?? 'none'}`);
+
       // PGRST116 = "no rows found" — expected for non-admins
       if (adminError?.code === 'PGRST116') {
+        console.log(`[Auth] User is not admin (PGRST116 - no rows)`);
         setCachedAdminStatus(userId, false);
         return false;
       }
@@ -255,6 +262,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const loadingStartedAt = Date.now();
     setLoadingPhase('sessionLoad');
 
+    console.log('[Auth] Session loading phase started');
+    if ('connection' in navigator) {
+      const conn = (navigator as any).connection;
+      console.log('[Auth] Initial network conditions:', {
+        type: conn?.type,
+        effectiveType: conn?.effectiveType,
+        downlink: conn?.downlink,
+        rtt: conn?.rtt,
+        saveData: conn?.saveData,
+      });
+    }
+    console.log('[Auth] navigator.onLine:', navigator.onLine);
+
     // Safety net: force isLoading:false if something unexpectedly hangs.
     const safetyTimer = setTimeout(() => {
       setState((prev) => {
@@ -292,9 +312,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
+      console.log(`[Auth] onAuthStateChange event: ${event}`, { hasSession: !!session });
+
       // TOKEN_REFRESHED — Supabase silently rotated the token; no UI change needed.
       // MFA_CHALLENGE_VERIFIED — internal MFA step; session will follow separately.
       if (event === 'TOKEN_REFRESHED' || event === 'MFA_CHALLENGE_VERIFIED') {
+        console.log(`[Auth] Ignoring internal event: ${event}`);
         return;
       }
 
@@ -332,6 +355,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (user) {
         setLoadingPhase('adminCheck');
+        console.log(`[Auth] Starting admin check for user ${user.id}`);
+        const adminCheckStartMs = Date.now();
+
         // Wrap admin check with a timeout so a slow/hanging DB query never blocks
         // the loading screen indefinitely.
         const adminCheckResult = await withTimeout<boolean | null>(
@@ -339,6 +365,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           AUTH_TIMEOUT_MS,
           null,
         );
+
+        const adminCheckElapsed = Date.now() - adminCheckStartMs;
+        console.log(`[Auth] Admin check completed in ${adminCheckElapsed}ms:`, { result: adminCheckResult });
 
         const previouslyKnownAdmin = lastKnownAdminByUserRef.current.get(user.id);
         const cachedAdmin = getCachedAdminStatus(user.id);
@@ -382,7 +411,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (email: string, password: string) => {
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
     const startMs = Date.now();
-    console.log('[Auth] signIn started');
+    console.log(`[Auth] signIn started for ${email}`);
+
+    if ('connection' in navigator) {
+      const conn = (navigator as any).connection;
+      console.log(`[Auth] Network conditions at signIn:`, {
+        type: conn?.type,
+        effectiveType: conn?.effectiveType,
+        downlink: conn?.downlink,
+        rtt: conn?.rtt,
+      });
+    }
 
     const result = await withTimeout(
       supabase.auth.signInWithPassword({ email, password }),
@@ -390,8 +429,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       { data: { user: null, session: null }, error: { message: 'Sign-in timed out. Please check your connection and try again.', name: 'AuthTimeoutError', status: 408 } as unknown as AuthError },
     );
     const { error } = result;
+    const elapsed = Date.now() - startMs;
 
-    console.log(`[Auth] signIn completed in ${Date.now() - startMs}ms, error: ${error?.message ?? 'none'}`);
+    if (error) {
+      console.error(`[Auth] signIn FAILED after ${elapsed}ms:`, { message: error.message, status: error.status, name: error.name });
+    } else {
+      console.log(`[Auth] signIn SUCCESS in ${elapsed}ms`);
+    }
 
     setState((prev) => ({
       ...prev,
@@ -405,7 +449,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = useCallback(async (email: string, password: string) => {
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
     const startMs = Date.now();
-    console.log('[Auth] signUp started');
+    console.log(`[Auth] signUp started for ${email}`);
+
+    if ('connection' in navigator) {
+      const conn = (navigator as any).connection;
+      console.log(`[Auth] Network conditions at signUp:`, {
+        type: conn?.type,
+        effectiveType: conn?.effectiveType,
+        downlink: conn?.downlink,
+        rtt: conn?.rtt,
+      });
+    }
 
     const result = await withTimeout(
       supabase.auth.signUp({ email, password }),
@@ -413,8 +467,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       { data: { user: null, session: null }, error: { message: 'Sign-up timed out. Please check your connection and try again.', name: 'AuthTimeoutError', status: 408 } as unknown as AuthError },
     );
     const { error } = result;
+    const elapsed = Date.now() - startMs;
 
-    console.log(`[Auth] signUp completed in ${Date.now() - startMs}ms, error: ${error?.message ?? 'none'}`);
+    if (error) {
+      console.error(`[Auth] signUp FAILED after ${elapsed}ms:`, { message: error.message, status: error.status, name: error.name });
+    } else {
+      console.log(`[Auth] signUp SUCCESS in ${elapsed}ms`);
+    }
 
     setState((prev) => ({
       ...prev,
