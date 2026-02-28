@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, getRealtimeStatus, setRealtimeStatus } from '@/lib/supabase';
 import { offlineQueue, itemsCache, networkStatus } from '@/lib/offline';
 import { useAuth } from './useAuth';
 import type { Item, ItemWithStatus, QueuedOperation } from '@/types';
@@ -49,6 +49,7 @@ export function useItems(): UseItemsReturn {
   const [isOnline, setIsOnline] = useState(networkStatus.isOnline());
   const [pendingCount, setPendingCount] = useState(offlineQueue.getPendingCount());
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch items from Supabase
   const fetchItems = useCallback(async () => {
@@ -105,14 +106,32 @@ export function useItems(): UseItemsReturn {
     }
   }, [user]);
 
-  // Subscribe to realtime updates
+  // Subscribe to realtime updates (with polling fallback)
   useEffect(() => {
     if (!user) return;
 
-    // Clean up previous subscription
+    // Clean up previous subscription and polling
     if (channelRef.current) {
       channelRef.current.unsubscribe();
     }
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+
+    // Check after 5 seconds if realtime is working; if not, fall back to polling
+    const realtimeCheckTimer = setTimeout(() => {
+      if (!getRealtimeStatus() && user) {
+        console.warn('[useItems] Realtime unavailable — switching to polling mode');
+        // Poll every 45 seconds for updates
+        pollingIntervalRef.current = setInterval(() => {
+          console.log('[useItems] Polling for updates...');
+          fetchItems();
+        }, 45000);
+        // Do an immediate fetch too
+        fetchItems();
+      }
+    }, 5000);
 
     const channel = supabase
       .channel(`items:${user.id}`)
@@ -161,20 +180,30 @@ export function useItems(): UseItemsReturn {
           // overwrite a successfully-loaded data set — only set the error when
           // there is nothing to show the user.
           console.error('[useItems] Realtime subscription error:', err);
+          setRealtimeStatus(false);
           return;
         }
 
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           console.warn('[useItems] Realtime channel status:', status);
+          setRealtimeStatus(false);
+        } else if (status === 'SUBSCRIBED') {
+          console.log('[useItems] Realtime channel subscribed successfully');
+          setRealtimeStatus(true);
         }
       });
 
     channelRef.current = channel;
 
     return () => {
+      clearTimeout(realtimeCheckTimer);
       channel.unsubscribe();
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
     };
-  }, [user]);
+  }, [user, fetchItems]);
 
   // Initial fetch
   useEffect(() => {

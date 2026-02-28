@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { AuthProvider, useAuth, purgeLocalData } from "@/hooks/useAuth";
+import { AuthProvider, useAuth, purgeLocalData, currentLoadingPhase } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { AuthForm, InventoryList, Spinner } from "@/components";
 
@@ -8,6 +8,8 @@ function AppContent() {
   const [showPurge, setShowPurge] = useState(false);
   const [purging, setPurging] = useState(false);
   const [purgeError, setPurgeError] = useState<string | null>(null);
+  const [loadingPhase, setLoadingPhase] = useState(currentLoadingPhase);
+  const [showSlowMessage, setShowSlowMessage] = useState(false);
 
   // Reveal the purge button only after 3 s so it doesn't flash on normal loads.
   // Reset it when loading stops so it doesn't persist across load cycles.
@@ -17,6 +19,24 @@ function AppContent() {
       return;
     }
     const timer = setTimeout(() => setShowPurge(true), 3000);
+    return () => clearTimeout(timer);
+  }, [isLoading]);
+
+  // Update loading phase display
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLoadingPhase(currentLoadingPhase);
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Show "connection slow" message after 5 seconds
+  useEffect(() => {
+    if (!isLoading) {
+      setShowSlowMessage(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowSlowMessage(true), 5000);
     return () => clearTimeout(timer);
   }, [isLoading]);
 
@@ -39,6 +59,23 @@ function AppContent() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <Spinner size="lg" />
+          <div className="mt-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              {loadingPhase === 'sessionLoad' && 'Loading...'}
+              {loadingPhase === 'adminCheck' && 'Checking permissions...'}
+              {loadingPhase === 'authComplete' && 'Ready!'}
+              {loadingPhase === 'noSession' && 'Ready!'}
+              {loadingPhase === 'safetyTimeout' && 'Completing setup...'}
+              {!loadingPhase && 'Loading...'}
+            </p>
+          </div>
+          {showSlowMessage && (
+            <div className="mt-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Connection slow — still trying...
+              </p>
+            </div>
+          )}
           {showPurge && (
             <div className="mt-6">
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">

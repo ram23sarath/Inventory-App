@@ -121,62 +121,62 @@ export function ItemRow({ item, onUpdate, onDelete, nameSuggestions = [] }: Item
           onCancel={() => setShowDeleteConfirm(false)}
         />
         <tr className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-        <td colSpan={3} className="px-4 py-3">
-          <form onSubmit={handleSaveEdit} onKeyDown={handleKeyDown}>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <datalist id={`item-names-${item.id}`}>
-                {nameSuggestions.map((name) => (
-                  <option key={name} value={name} />
-                ))}
-              </datalist>
-              <input
-                ref={nameInputRef}
-                type="text"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                className="input flex-1"
-                placeholder="Item name"
-                aria-label="Edit item name"
-                list={`item-names-${item.id}`}
-                required
-              />
-              <div className="relative sm:w-32">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                  ₹
-                </span>
+          <td colSpan={3} className="px-4 py-3">
+            <form onSubmit={handleSaveEdit} onKeyDown={handleKeyDown}>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <datalist id={`item-names-${item.id}`}>
+                  {nameSuggestions.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
                 <input
+                  ref={nameInputRef}
                   type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*\.?[0-9]{0,2}"
-                  value={editPrice}
-                  onChange={(e) => setEditPrice(e.target.value)}
-                  className="input pl-7"
-                  placeholder="0.00"
-                  aria-label="Edit item price"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="input flex-1"
+                  placeholder="Item name"
+                  aria-label="Edit item name"
+                  list={`item-names-${item.id}`}
                   required
                 />
+                <div className="relative sm:w-32">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                    ₹
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*\.?[0-9]{0,2}"
+                    value={editPrice}
+                    onChange={(e) => setEditPrice(e.target.value)}
+                    className="input pl-7"
+                    placeholder="0.00"
+                    aria-label="Edit item price"
+                    required
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="btn-ghost text-sm"
+                    aria-label="Cancel editing"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary text-sm"
+                    aria-label="Save changes"
+                  >
+                    Save
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2 justify-end">
-                <button
-                  type="button"
-                  onClick={handleCancelEdit}
-                  className="btn-ghost text-sm"
-                  aria-label="Cancel editing"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn-primary text-sm"
-                  aria-label="Save changes"
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-          </form>
-        </td>
-      </tr>
+            </form>
+          </td>
+        </tr>
       </>
     );
   }
@@ -192,73 +192,48 @@ export function ItemRow({ item, onUpdate, onDelete, nameSuggestions = [] }: Item
         onCancel={() => setShowDeleteConfirm(false)}
       />
       <tr
-        className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
-        isPending ? "opacity-70 bg-gray-50 dark:bg-gray-800" : ""
-      } ${hasError ? "bg-red-50 dark:bg-red-900/20" : ""}`}
-      role="row"
-    >
-      {/* Name Cell */}
-      <td className="px-4 py-4 max-w-0">
-        <div className="flex items-center gap-2 min-w-0">
-          {isPending && (
-            <div className="flex-shrink-0" aria-label="Syncing">
-              <Spinner size="sm" />
-            </div>
-          )}
-          {hasError && (
-            <div
-              className="flex-shrink-0 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center"
-              aria-label="Sync error"
-            >
-              <span className="text-white text-xs font-bold">!</span>
-            </div>
-          )}
-          <span className="font-medium text-gray-900 dark:text-white truncate">
-            {item.name}
-          </span>
-        </div>
-      </td>
+        className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${isPending ? "opacity-70 bg-gray-50 dark:bg-gray-800" : ""
+          } ${hasError ? "bg-red-50 dark:bg-red-900/20" : ""}`}
+        role="row"
+      >
+        {/* Name Cell */}
+        <td className="px-4 py-4 max-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            {isPending && (
+              <div className="flex-shrink-0" aria-label="Syncing">
+                <Spinner size="sm" />
+              </div>
+            )}
+            {hasError && (
+              <div
+                className="flex-shrink-0 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center"
+                aria-label="Sync error"
+              >
+                <span className="text-white text-xs font-bold">!</span>
+              </div>
+            )}
+            <span className="font-medium text-gray-900 dark:text-white truncate">
+              {item.name}
+            </span>
+          </div>
+        </td>
 
-      {/* Price Cell */}
-      <td className="px-4 py-4 text-gray-600 dark:text-gray-400 whitespace-nowrap tabular-nums">
-        {formatCurrency(item.price_cents)}
-      </td>
+        {/* Price Cell */}
+        <td className="px-4 py-4 text-gray-600 dark:text-gray-400 whitespace-nowrap tabular-nums">
+          {formatCurrency(item.price_cents)}
+        </td>
 
-      {/* Actions Cell */}
-      <td className="px-4 py-4 text-right">
-        <div className="flex items-center justify-end gap-1">
-          <button
-            onClick={handleStartEdit}
-            disabled={isPending || isDeleting}
-            className="btn-icon"
-            aria-label={`Edit ${item.name}`}
-          >
-            <svg
-              className="w-5 h-5 text-gray-600 dark:text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
+        {/* Actions Cell */}
+        <td className="px-4 py-4 text-right">
+          <div className="flex items-center justify-end gap-1">
+            <button
+              onClick={handleStartEdit}
+              disabled={isPending || isDeleting}
+              className="btn-icon"
+              aria-label={`Edit ${item.name}`}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-              />
-            </svg>
-          </button>
-          <button
-            onClick={handleDelete}
-            disabled={isPending || isDeleting}
-            className="btn-icon text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-            aria-label={`Delete ${item.name}`}
-          >
-            {isDeleting ? (
-              <Spinner size="sm" />
-            ) : (
               <svg
-                className="w-5 h-5"
+                className="w-5 h-5 text-gray-600 dark:text-gray-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -268,14 +243,38 @@ export function ItemRow({ item, onUpdate, onDelete, nameSuggestions = [] }: Item
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                 />
               </svg>
-            )}
-          </button>
-        </div>
-      </td>
-    </tr>
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={isPending || isDeleting}
+              className="btn-icon text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+              aria-label={`Delete ${item.name}`}
+            >
+              {isDeleting ? (
+                <Spinner size="sm" />
+              ) : (
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              )}
+            </button>
+          </div>
+        </td>
+      </tr>
     </>
   );
 }

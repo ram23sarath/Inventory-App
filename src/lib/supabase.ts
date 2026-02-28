@@ -11,6 +11,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+/** Track whether realtime/WebSocket connection is available */
+export let isRealtimeAvailable = true;
+
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
@@ -25,8 +28,21 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     // Detect stale WebSocket connections faster (Android drops connections silently).
     // Default heartbeat is 30 s — halving it means dead connections are found in ~15 s.
     heartbeatIntervalMs: 15000,
-    // Channel reply timeout: how long to wait for a push/join ack before giving up.
-    // Default is 10 s; 15 s gives slow mobile networks a bit more room.
-    timeout: 15000,
+    // Reduced timeout from 15s to 5s: fail fast on blocked networks so app can fall back to polling.
+    // Some carrier networks block WebSocket connections; we want to detect this quickly.
+    timeout: 5000,
   },
 }) as any;
+
+/** Helper to check if realtime is currently available (used by useItems for polling fallback) */
+export function getRealtimeStatus(): boolean {
+  return isRealtimeAvailable;
+}
+
+/** Track realtime connection status */
+export function setRealtimeStatus(available: boolean): void {
+  if (available !== isRealtimeAvailable) {
+    console.log(`[Realtime] Status changed: ${available ? 'connected' : 'disconnected'}`);
+    isRealtimeAvailable = available;
+  }
+}

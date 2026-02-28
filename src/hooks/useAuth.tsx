@@ -30,9 +30,9 @@ let hasLoggedAdminNetworkIssue = false;
 const ADMIN_CACHE_PREFIX = 'inventory-admin:';
 
 /** Maximum ms to wait for any single auth operation before giving up. */
-const AUTH_TIMEOUT_MS = 5000;
+const AUTH_TIMEOUT_MS = 8000;
 /** Global safety net: if isLoading is still true after this, force it false. */
-const LOADING_SAFETY_TIMEOUT_MS = 8000;
+const LOADING_SAFETY_TIMEOUT_MS = 12000;
 
 /** Races a promise against a timeout; resolves to `fallback` if time expires. */
 function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
@@ -146,6 +146,14 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Track different loading phases for diagnostics */
+export let currentLoadingPhase = 'sessionLoad';
+export function setLoadingPhase(phase: string): void {
+  const timestamp = new Date().toLocaleTimeString();
+  console.log(`[LoadingPhase] ${timestamp} - ${phase}`);
+  currentLoadingPhase = phase;
+}
+
 async function checkIfAdmin(userId: string): Promise<boolean | null> {
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
@@ -244,12 +252,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Wall-clock start time — used by the visibilitychange handler below.
     // Unlike setTimeout, Date.now() is not paused when Android suspends the tab.
     const loadingStartedAt = Date.now();
+    setLoadingPhase('sessionLoad');
 
     // Safety net: force isLoading:false if something unexpectedly hangs.
     const safetyTimer = setTimeout(() => {
       setState((prev) => {
         if (!prev.isLoading) return prev;
         console.warn('[Auth] Safety timeout reached — forcing isLoading:false. Check network or admin table.');
+        setLoadingPhase('safetyTimeout');
         return { ...prev, isLoading: false };
       });
     }, LOADING_SAFETY_TIMEOUT_MS);
@@ -320,6 +330,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let user = mapUser(authUser);
 
       if (user) {
+        setLoadingPhase('adminCheck');
         // Wrap admin check with a timeout so a slow/hanging DB query never blocks
         // the loading screen indefinitely.
         const adminCheckResult = await withTimeout<boolean | null>(
@@ -340,6 +351,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (isAdmin) {
           user = { ...user, isAdmin: true };
         }
+        setLoadingPhase('authComplete');
         console.log('[Auth] Authenticated as', user.email, '| admin:', isAdmin);
         setState({
           isLoading: false,
@@ -348,6 +360,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           error: null,
         });
       } else {
+        setLoadingPhase('noSession');
         console.log('[Auth] Auth state changed — not authenticated.');
         setState({
           isLoading: false,
