@@ -8,7 +8,8 @@ var viteConfig = defineConfig({
         VitePWA({
             registerType: 'autoUpdate',
             injectRegister: 'auto',
-            includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+            // includeAssets removed: globPatterns '**/*.{ico,png,svg}' already covers these files.
+            // Having both caused duplicate entries in the precache manifest, wasting bandwidth on mobile.
             manifest: {
                 name: 'Inventory App',
                 short_name: 'Inventory',
@@ -52,6 +53,11 @@ var viteConfig = defineConfig({
                 navigateFallbackDenylist: [/^\/auth/],
                 runtimeCaching: [
                     {
+                        // Auth endpoints must NEVER be cached — stale tokens cause silent auth failures.
+                        urlPattern: /^https:\/\/.*\.supabase\.co\/auth\/.*/i,
+                        handler: 'NetworkOnly',
+                    },
+                    {
                         // Only cache REST API data calls — auth endpoints (/auth/v1/*) are excluded
                         urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/.*/i,
                         handler: 'NetworkFirst',
@@ -61,7 +67,7 @@ var viteConfig = defineConfig({
                             networkTimeoutSeconds: 10,
                             expiration: {
                                 maxEntries: 100,
-                                maxAgeSeconds: 60 * 60 * 24 // 24 hours
+                                maxAgeSeconds: 60 * 60 * 2 // 2 hours (reduced from 24h to limit stale data after Wi-Fi→mobile transition)
                             },
                             cacheableResponse: {
                                 statuses: [200]

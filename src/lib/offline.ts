@@ -115,26 +115,102 @@ export const itemsCache = {
 };
 
 /**
- * Network status detection
+ * Network status detection with active health checking.
+ *
+ * navigator.onLine is unreliable on mobile: it returns true when the device
+ * has a network interface up, even if the data path is broken (carrier congestion,
+ * NAT timeout, tower handover). We supplement it with a periodic HEAD request
+ * to the Supabase endpoint to verify actual connectivity.
  */
+
+let _effectivelyOnline = navigator.onLine;
+let _healthCheckTimer: ReturnType<typeof setInterval> | null = null;
+const _subscribers: Array<(online: boolean) => void> = [];
+
+const HEALTH_CHECK_URL = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/`;
+const HEALTH_CHECK_INTERVAL_MS = 30000; // Check every 30 seconds
+const HEALTH_CHECK_TIMEOUT_MS = 5000;   // Give up after 5 seconds
+
+async function checkConnectivity(): Promise<boolean> {
+  if (!navigator.onLine) return false; // Fast fail: radio is definitely off
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
+
+    // mode: 'no-cors' avoids CORS preflight; we only care if the network path works.
+    // The response is opaque (status 0) but fetch() only throws on actual network failure.
+    await fetch(HEALTH_CHECK_URL, {
+      method: 'HEAD',
+      mode: 'no-cors',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function notifySubscribers(online: boolean): void {
+  if (online !== _effectivelyOnline) {
+    _effectivelyOnline = online;
+    _subscribers.forEach((cb) => cb(online));
+  }
+}
+
+function startHealthCheck(): void {
+  if (_healthCheckTimer) return;
+  _healthCheckTimer = setInterval(async () => {
+    const online = await checkConnectivity();
+    notifySubscribers(online);
+  }, HEALTH_CHECK_INTERVAL_MS);
+}
+
+function stopHealthCheck(): void {
+  if (_healthCheckTimer) {
+    clearInterval(_healthCheckTimer);
+    _healthCheckTimer = null;
+  }
+}
+
 export const networkStatus = {
   isOnline(): boolean {
-    return navigator.onLine;
+    return _effectivelyOnline;
   },
 
-  /**
-   * Subscribe to online/offline events
-   */
+  /** Perform an immediate connectivity check (useful before critical operations). */
+  async checkNow(): Promise<boolean> {
+    const online = await checkConnectivity();
+    notifySubscribers(online);
+    return online;
+  },
+
   subscribe(callback: (online: boolean) => void): () => void {
-    const handleOnline = () => callback(true);
-    const handleOffline = () => callback(false);
-    
+    _subscribers.push(callback);
+
+    // Keep browser events as fast signals
+    const handleOnline = async () => {
+      // Browser says online — verify with a health check
+      const online = await checkConnectivity();
+      notifySubscribers(online);
+    };
+    const handleOffline = () => notifySubscribers(false);
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    
+
+    // Start periodic health checks when we have subscribers
+    startHealthCheck();
+
     return () => {
+      const idx = _subscribers.indexOf(callback);
+      if (idx >= 0) _subscribers.splice(idx, 1);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      if (_subscribers.length === 0) stopHealthCheck();
     };
   },
 };

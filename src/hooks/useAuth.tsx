@@ -98,8 +98,9 @@ export async function purgeLocalData(): Promise<void> {
 
   // Force reload without cache: bypass service worker and HTTP cache
   try {
-    // Add cache-busting parameter and disable beforeunload handlers
-    window.location.href = window.location.href + '?nocache=' + Date.now();
+    // Strip any existing query string, then add a fresh cache-buster
+    const baseUrl = window.location.origin + window.location.pathname;
+    window.location.href = baseUrl + '?nocache=' + Date.now();
     // Fallback for when href doesn't work
     setTimeout(() => { window.location.reload(); }, 100);
   } catch { /* ignore */ }
@@ -380,11 +381,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
+    const startMs = Date.now();
+    console.log('[Auth] signIn started');
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const result = await withTimeout(
+      supabase.auth.signInWithPassword({ email, password }),
+      15000,
+      { data: { user: null, session: null }, error: { message: 'Sign-in timed out. Please check your connection and try again.', name: 'AuthTimeoutError', status: 408 } as unknown as AuthError },
+    );
+    const { error } = result;
+
+    console.log(`[Auth] signIn completed in ${Date.now() - startMs}ms, error: ${error?.message ?? 'none'}`);
 
     setState((prev) => ({
       ...prev,
@@ -397,11 +404,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = useCallback(async (email: string, password: string) => {
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
+    const startMs = Date.now();
+    console.log('[Auth] signUp started');
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    const result = await withTimeout(
+      supabase.auth.signUp({ email, password }),
+      15000,
+      { data: { user: null, session: null }, error: { message: 'Sign-up timed out. Please check your connection and try again.', name: 'AuthTimeoutError', status: 408 } as unknown as AuthError },
+    );
+    const { error } = result;
+
+    console.log(`[Auth] signUp completed in ${Date.now() - startMs}ms, error: ${error?.message ?? 'none'}`);
 
     setState((prev) => ({
       ...prev,
@@ -414,7 +427,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     setState((prev) => ({ ...prev, isLoading: true }));
-    await supabase.auth.signOut();
+    // Best-effort sign out: if network fails, still clear local state
+    await withTimeout(supabase.auth.signOut(), 5000, undefined);
     clearAuthStorage();
     setState({
       isLoading: false,

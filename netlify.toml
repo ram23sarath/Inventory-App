@@ -1,0 +1,51 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# SPA fallback: serve index.html for all paths that don't match a static file.
+# Without this, direct URL access (e.g., bookmark, PWA launch) returns 404.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  # Service worker must NEVER be cached by carrier proxies or CDN edges.
+  # Mobile carriers run transparent proxies that aggressively cache responses;
+  # without this, mobile users get trapped on old service workers for days.
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
+[[headers]]
+  # Workbox runtime also needs no-cache to stay in sync with sw.js.
+  for = "/workbox-*.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  # index.html must be revalidated so users get the latest asset hash references.
+  # Carrier proxies may cache this for hours otherwise, serving stale HTML that
+  # references old JS/CSS filenames that no longer exist.
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
+
+[[headers]]
+  # Vite hashed assets (e.g., assets/index-a1b2c3d4.js) are immutable —
+  # the filename changes on every build, so aggressive caching is safe.
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  # Security headers for all paths.
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"

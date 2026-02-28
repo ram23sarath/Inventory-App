@@ -106,7 +106,7 @@ export function useItems(): UseItemsReturn {
     }
   }, [user]);
 
-  // Subscribe to realtime updates (with polling fallback)
+  // Subscribe to realtime updates (with polling fallback and exponential backoff reconnect)
   useEffect(() => {
     if (!user) return;
 
@@ -117,6 +117,105 @@ export function useItems(): UseItemsReturn {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
+    }
+
+    // Exponential backoff state for WebSocket reconnections.
+    // Mobile carriers drop idle WS connections after 30-60s; without backoff
+    // the client enters a tight reconnect loop draining battery and data.
+    let reconnectAttempts = 0;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    const MAX_RECONNECT_DELAY_MS = 60000;
+    const BASE_DELAY_MS = 1000;
+
+    function getReconnectDelay(): number {
+      const exponentialDelay = Math.min(
+        BASE_DELAY_MS * Math.pow(2, reconnectAttempts),
+        MAX_RECONNECT_DELAY_MS
+      );
+      // Add 0-25% jitter to prevent thundering herd
+      const jitter = exponentialDelay * Math.random() * 0.25;
+      return exponentialDelay + jitter;
+    }
+
+    function setupChannel() {
+      if (!user) return; // Guard for TypeScript (outer effect already checks)
+      if (channelRef.current) {
+        channelRef.current.unsubscribe();
+      }
+
+      const channel = supabase
+        .channel(`items:${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'items',
+            ...(user.isAdmin ? {} : { filter: `user_id=eq.${user.id}` }),
+          },
+          (payload: any) => {
+            if (payload.eventType === 'INSERT') {
+              const newItem = payload.new as Item;
+              setItems(prev => {
+                // Check if item already exists (from optimistic update)
+                const exists = prev.some(item => item.id === newItem.id);
+                if (exists) {
+                  return prev.map(item =>
+                    item.id === newItem.id
+                      ? { ...newItem, syncStatus: 'synced' as const }
+                      : item
+                  );
+                }
+                return [{ ...newItem, syncStatus: 'synced' as const }, ...prev];
+              });
+            } else if (payload.eventType === 'UPDATE') {
+              const updatedItem = payload.new as Item;
+              setItems(prev =>
+                prev.map(item =>
+                  item.id === updatedItem.id
+                    ? { ...updatedItem, syncStatus: 'synced' as const }
+                    : item
+                )
+              );
+            } else if (payload.eventType === 'DELETE') {
+              const deletedItem = payload.old as Item;
+              setItems(prev => prev.filter(item => item.id !== deletedItem.id));
+            }
+          }
+        )
+        .subscribe((status: any, err: any) => {
+          if (err) {
+            console.error('[useItems] Realtime subscription error:', err);
+            setRealtimeStatus(false);
+            scheduleReconnect();
+            return;
+          }
+
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn('[useItems] Realtime channel status:', status);
+            setRealtimeStatus(false);
+            scheduleReconnect();
+          } else if (status === 'SUBSCRIBED') {
+            console.log('[useItems] Realtime channel subscribed successfully');
+            setRealtimeStatus(true);
+            reconnectAttempts = 0; // Reset backoff on successful connection
+          }
+        });
+
+      channelRef.current = channel;
+    }
+
+    function scheduleReconnect() {
+      if (reconnectTimer) return; // Already scheduled
+
+      const delay = getReconnectDelay();
+      reconnectAttempts += 1;
+      console.log(`[useItems] Scheduling realtime reconnect in ${Math.round(delay)}ms (attempt ${reconnectAttempts})`);
+
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        setupChannel();
+      }, delay);
     }
 
     // Check after 5 seconds if realtime is working; if not, fall back to polling
@@ -133,71 +232,12 @@ export function useItems(): UseItemsReturn {
       }
     }, 5000);
 
-    const channel = supabase
-      .channel(`items:${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'items',
-          ...(user.isAdmin ? {} : { filter: `user_id=eq.${user.id}` }),
-        },
-        (payload: any) => {
-          if (payload.eventType === 'INSERT') {
-            const newItem = payload.new as Item;
-            setItems(prev => {
-              // Check if item already exists (from optimistic update)
-              const exists = prev.some(item => item.id === newItem.id);
-              if (exists) {
-                return prev.map(item =>
-                  item.id === newItem.id
-                    ? { ...newItem, syncStatus: 'synced' as const }
-                    : item
-                );
-              }
-              return [{ ...newItem, syncStatus: 'synced' as const }, ...prev];
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedItem = payload.new as Item;
-            setItems(prev =>
-              prev.map(item =>
-                item.id === updatedItem.id
-                  ? { ...updatedItem, syncStatus: 'synced' as const }
-                  : item
-              )
-            );
-          } else if (payload.eventType === 'DELETE') {
-            const deletedItem = payload.old as Item;
-            setItems(prev => prev.filter(item => item.id !== deletedItem.id));
-          }
-        }
-      )
-      .subscribe((status: any, err: any) => {
-        if (err) {
-          // Genuine subscription rejection from the server (e.g. table not in
-          // realtime publication, RLS blocks the channel).  Log it but do NOT
-          // overwrite a successfully-loaded data set — only set the error when
-          // there is nothing to show the user.
-          console.error('[useItems] Realtime subscription error:', err);
-          setRealtimeStatus(false);
-          return;
-        }
-
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.warn('[useItems] Realtime channel status:', status);
-          setRealtimeStatus(false);
-        } else if (status === 'SUBSCRIBED') {
-          console.log('[useItems] Realtime channel subscribed successfully');
-          setRealtimeStatus(true);
-        }
-      });
-
-    channelRef.current = channel;
+    setupChannel();
 
     return () => {
       clearTimeout(realtimeCheckTimer);
-      channel.unsubscribe();
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (channelRef.current) channelRef.current.unsubscribe();
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
@@ -225,7 +265,7 @@ export function useItems(): UseItemsReturn {
 
   // Sync offline queue
   const syncOfflineQueue = useCallback(async () => {
-    if (!user || !networkStatus.isOnline()) return;
+    if (!user || !(await networkStatus.checkNow())) return;
 
     const queue = offlineQueue.getQueue();
 
@@ -316,7 +356,7 @@ export function useItems(): UseItemsReturn {
     // Optimistic update
     setItems(prev => [optimisticItem, ...prev]);
 
-    if (networkStatus.isOnline()) {
+    if (await networkStatus.checkNow()) {
       try {
         const { data, error: insertError } = await (supabase
           .from('items')
@@ -392,7 +432,7 @@ export function useItems(): UseItemsReturn {
       )
     );
 
-    if (networkStatus.isOnline()) {
+    if (await networkStatus.checkNow()) {
       try {
         const { error: updateError } = await (supabase
           .from('items')
@@ -441,7 +481,7 @@ export function useItems(): UseItemsReturn {
     // Optimistic delete
     setItems(prev => prev.filter(item => item.id !== id));
 
-    if (networkStatus.isOnline()) {
+    if (await networkStatus.checkNow()) {
       try {
         const { error: deleteError } = await supabase
           .from('items')
