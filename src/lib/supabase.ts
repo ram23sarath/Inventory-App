@@ -133,10 +133,10 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     },
     // Detect stale WebSocket connections faster (Android drops connections silently).
     // Default heartbeat is 30 s — halving it means dead connections are found in ~15 s.
-    heartbeatIntervalMs: 15000,
-    // Reduced timeout from 15s to 5s: fail fast on blocked networks so app can fall back to polling.
-    // Some carrier networks block WebSocket connections; we want to detect this quickly.
-    timeout: 5000,
+    // Make heartbeat less aggressive and allow more time for flaky mobile networks
+    heartbeatIntervalMs: 30000,
+    // Increase timeout to tolerate transient carrier hiccups before falling back
+    timeout: 15000,
   },
 }) as any;
 

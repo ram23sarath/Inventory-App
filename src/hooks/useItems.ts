@@ -50,6 +50,8 @@ export function useItems(): UseItemsReturn {
   const [pendingCount, setPendingCount] = useState(offlineQueue.getPendingCount());
   const channelRef = useRef<RealtimeChannel | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const activityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  let currentPollIntervalMs = 45000;
 
   // Fetch items from Supabase
   const fetchItems = useCallback(async () => {
@@ -218,21 +220,75 @@ export function useItems(): UseItemsReturn {
       }, delay);
     }
 
-    // Check after 5 seconds if realtime is working; if not, fall back to polling
+    // Adaptive polling constants
+    const ACTIVE_POLL_INTERVAL_MS = 10000; // while user is active / visible
+    const IDLE_POLL_INTERVAL_MS = 45000;   // default fallback
+
+    function stopPolling() {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    }
+
+    function startPolling(ms: number) {
+      stopPolling();
+      currentPollIntervalMs = ms;
+      pollingIntervalRef.current = setInterval(() => {
+        console.log('[useItems] Polling for updates...');
+        fetchItems();
+      }, ms);
+    }
+
+    // Check after 5 seconds if realtime is working; if not, fall back to adaptive polling
     const realtimeCheckTimer = setTimeout(() => {
       if (!getRealtimeStatus() && user) {
         console.warn('[useItems] Realtime unavailable — switching to polling mode');
-        // Poll every 45 seconds for updates
-        pollingIntervalRef.current = setInterval(() => {
-          console.log('[useItems] Polling for updates...');
-          fetchItems();
-        }, 45000);
+        // Choose active polling if visible, otherwise idle polling
+        const isVisible = document.visibilityState === 'visible';
+        startPolling(isVisible ? ACTIVE_POLL_INTERVAL_MS : IDLE_POLL_INTERVAL_MS);
         // Do an immediate fetch too
         fetchItems();
       }
     }, 5000);
 
     setupChannel();
+
+    // Improve reconnection responsiveness when user returns to the tab
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[useItems] Visibility: visible — attempting immediate reconnect and fetch');
+        // If we are polling, switch to more aggressive polling while visible
+        if (!getRealtimeStatus()) {
+          startPolling(ACTIVE_POLL_INTERVAL_MS);
+        }
+        // Try to reconnect immediately
+        setupChannel();
+        fetchItems();
+      } else {
+        // When hidden, reduce polling to save battery/data
+        if (!getRealtimeStatus()) startPolling(IDLE_POLL_INTERVAL_MS);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // User activity — temporarily increase polling while the user interacts
+    const onUserActivity = () => {
+      if (activityTimeoutRef.current) {
+        clearTimeout(activityTimeoutRef.current);
+      }
+      // If using polling, switch to active interval for a short window
+      if (pollingIntervalRef.current && currentPollIntervalMs !== ACTIVE_POLL_INTERVAL_MS) {
+        startPolling(ACTIVE_POLL_INTERVAL_MS);
+      }
+      activityTimeoutRef.current = setTimeout(() => {
+        if (pollingIntervalRef.current) startPolling(IDLE_POLL_INTERVAL_MS);
+      }, 20000); // remain aggressive for 20s after last interaction
+    };
+
+    window.addEventListener('pointerdown', onUserActivity);
+    window.addEventListener('touchstart', onUserActivity);
 
     return () => {
       clearTimeout(realtimeCheckTimer);
@@ -242,6 +298,10 @@ export function useItems(): UseItemsReturn {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
       }
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('pointerdown', onUserActivity);
+      window.removeEventListener('touchstart', onUserActivity);
+      if (activityTimeoutRef.current) clearTimeout(activityTimeoutRef.current);
     };
   }, [user, fetchItems]);
 
