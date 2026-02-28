@@ -3,7 +3,8 @@ import type { Database } from '@/types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const AUTH_PROXY_FUNCTION_PATH = '/supabase-auth';
+const AUTH_PROXY_PATH = '/supabase-auth';
+const REST_PROXY_PATH = '/supabase-rest';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
@@ -15,7 +16,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 /** Track whether realtime/WebSocket connection is available */
 export let isRealtimeAvailable = true;
 
-function shouldProxyAuthRequests(): boolean {
+function shouldProxyRequests(): boolean {
   return import.meta.env.PROD && typeof window !== 'undefined';
 }
 
@@ -24,10 +25,21 @@ function isSupabaseAuthRequest(url: URL): boolean {
   return url.origin === supabaseOrigin && url.pathname.startsWith('/auth/v1/');
 }
 
+function isSupabaseRestRequest(url: URL): boolean {
+  const supabaseOrigin = new URL(supabaseUrl).origin;
+  return url.origin === supabaseOrigin && url.pathname.startsWith('/rest/v1/');
+}
+
 function buildAuthProxyUrl(url: URL): string {
   const authPath = url.pathname.replace(/^\/auth\/v1\/?/, '');
   const normalizedPath = authPath.length > 0 ? `/${authPath}` : '';
-  return `${AUTH_PROXY_FUNCTION_PATH}${normalizedPath}${url.search}`;
+  return `${AUTH_PROXY_PATH}${normalizedPath}${url.search}`;
+}
+
+function buildRestProxyUrl(url: URL): string {
+  const restPath = url.pathname.replace(/^\/rest\/v1\/?/, '');
+  const normalizedPath = restPath.length > 0 ? `/${restPath}` : '';
+  return `${REST_PROXY_PATH}${normalizedPath}${url.search}`;
 }
 
 async function supabaseFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -35,42 +47,74 @@ async function supabaseFetch(input: RequestInfo | URL, init?: RequestInit): Prom
   const requestUrl = new URL(request.url);
   const method = (request.method || 'GET').toUpperCase();
 
-  if (!shouldProxyAuthRequests()) {
-    console.log(`[Auth] Direct fetch (dev): ${method} ${requestUrl.pathname}`);
+  if (!shouldProxyRequests()) {
+    console.log(`[Supabase] Direct fetch (dev): ${method} ${requestUrl.pathname}`);
     return globalThis.fetch(request);
   }
 
-  if (!isSupabaseAuthRequest(requestUrl)) {
-    console.log(`[Auth] Non-auth API fetch: ${method} ${requestUrl.host}${requestUrl.pathname}`);
-    return globalThis.fetch(request);
+  // Route auth requests through /supabase-auth proxy
+  if (isSupabaseAuthRequest(requestUrl)) {
+    const proxyUrl = buildAuthProxyUrl(requestUrl);
+    const headers = new Headers(request.headers);
+    const startMs = Date.now();
+    const authEndpoint = requestUrl.pathname.replace(/^.*\/auth\/v1\/?/, '') || 'token';
+
+    console.log(`[Supabase] AUTH PROXY START: ${method} /supabase-auth/${authEndpoint}`);
+
+    const body = method === 'GET' || method === 'HEAD'
+      ? undefined
+      : await request.clone().arrayBuffer();
+
+    try {
+      const response = await globalThis.fetch(proxyUrl, {
+        method,
+        headers,
+        body,
+        credentials: 'same-origin',
+      });
+      const elapsed = Date.now() - startMs;
+      console.log(`[Supabase] AUTH PROXY COMPLETE: ${response.status} in ${elapsed}ms`);
+      return response;
+    } catch (error) {
+      const elapsed = Date.now() - startMs;
+      console.error(`[Supabase] AUTH PROXY FAILED after ${elapsed}ms:`, error);
+      throw error;
+    }
   }
 
-  const proxyUrl = buildAuthProxyUrl(requestUrl);
-  const headers = new Headers(request.headers);
-  const startMs = Date.now();
-  const authEndpoint = requestUrl.pathname.replace(/^.*\/auth\/v1\/?/, '') || 'token';
+  // Route REST API requests through /supabase-rest proxy
+  if (isSupabaseRestRequest(requestUrl)) {
+    const proxyUrl = buildRestProxyUrl(requestUrl);
+    const headers = new Headers(request.headers);
+    const startMs = Date.now();
+    const restEndpoint = requestUrl.pathname.replace(/^.*\/rest\/v1\/?/, '') || '(root)';
 
-  console.log(`[Auth] PROXY START: ${method} /supabase-auth/${authEndpoint}`, { proxyUrl });
+    console.log(`[Supabase] REST PROXY START: ${method} /supabase-rest/${restEndpoint}`);
 
-  const body = method === 'GET' || method === 'HEAD'
-    ? undefined
-    : await request.clone().arrayBuffer();
+    const body = method === 'GET' || method === 'HEAD'
+      ? undefined
+      : await request.clone().arrayBuffer();
 
-  try {
-    const response = await globalThis.fetch(proxyUrl, {
-      method,
-      headers,
-      body,
-      credentials: 'same-origin',
-    });
-    const elapsed = Date.now() - startMs;
-    console.log(`[Auth] PROXY COMPLETE: ${response.status} in ${elapsed}ms`);
-    return response;
-  } catch (error) {
-    const elapsed = Date.now() - startMs;
-    console.error(`[Auth] PROXY FAILED after ${elapsed}ms:`, error);
-    throw error;
+    try {
+      const response = await globalThis.fetch(proxyUrl, {
+        method,
+        headers,
+        body,
+        credentials: 'same-origin',
+      });
+      const elapsed = Date.now() - startMs;
+      console.log(`[Supabase] REST PROXY COMPLETE: ${response.status} in ${elapsed}ms`);
+      return response;
+    } catch (error) {
+      const elapsed = Date.now() - startMs;
+      console.error(`[Supabase] REST PROXY FAILED after ${elapsed}ms:`, error);
+      throw error;
+    }
   }
+
+  // Non-Supabase requests pass through normally
+  console.log(`[Supabase] External API fetch: ${method} ${requestUrl.origin}${requestUrl.pathname}`);
+  return globalThis.fetch(request);
 }
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {

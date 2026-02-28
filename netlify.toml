@@ -7,6 +7,11 @@
   to = "/.netlify/functions/supabase-auth/:splat"
   status = 200
 
+[[redirects]]
+  from = "/supabase-rest/*"
+  to = "/.netlify/functions/supabase-rest/:splat"
+  status = 200
+
 # SPA fallback: serve index.html for all paths that don't match a static file.
 # Without this, direct URL access (e.g., bookmark, PWA launch) returns 404.
 [[redirects]]
@@ -48,6 +53,14 @@
 [[headers]]
   # Proxy auth endpoint should never be cached.
   for = "/supabase-auth/*"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
+[[headers]]
+  # Proxy REST API endpoint should never be cached.
+  for = "/supabase-rest/*"
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
     Pragma = "no-cache"

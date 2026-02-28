@@ -33,6 +33,15 @@ if ('caches' in window) {
 }
 
 // --- Temporary diagnostic logging (remove after mobile issues are confirmed fixed) ---
+console.log('[Diag] Inventory App started');
+if (import.meta.env.PROD) {
+  console.log('[Diag] PRODUCTION MODE: All Supabase auth and REST API calls proxied through same-origin paths');
+  console.log('[Diag] - Auth requests: /supabase-auth/* → /.netlify/functions/supabase-auth');
+  console.log('[Diag] - REST API requests: /supabase-rest/* → /.netlify/functions/supabase-rest');
+} else {
+  console.log('[Diag] DEVELOPMENT MODE: Direct Supabase connections (no proxying)');
+}
+
 // C1: Log network conditions on startup
 if ('connection' in navigator) {
   const conn = (navigator as any).connection;
