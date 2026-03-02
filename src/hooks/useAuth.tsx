@@ -423,12 +423,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     }
 
-    const result = await withTimeout(
-      supabase.auth.signInWithPassword({ email, password }),
-      15000,
-      { data: { user: null, session: null }, error: { message: 'Sign-in timed out. Please check your connection and try again.', name: 'AuthTimeoutError', status: 408 } as unknown as AuthError },
-    );
-    const { error } = result;
+    let error: AuthError | null = null;
+
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      const result = await supabase.auth.signInWithPassword({ email, password });
+      error = result.error;
+
+      if (!error) {
+        break;
+      }
+
+      const message = `${error.message ?? ''}`.toLowerCase();
+      const isTransient =
+        message.includes('failed to fetch') ||
+        message.includes('network') ||
+        message.includes('timeout') ||
+        error.status === 408 ||
+        error.status === 425 ||
+        error.status === 429 ||
+        (typeof error.status === 'number' && error.status >= 500);
+
+      if (!isTransient || attempt === 2) {
+        break;
+      }
+
+      await delay(400 * attempt);
+    }
+
     const elapsed = Date.now() - startMs;
 
     if (error) {
@@ -461,12 +482,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     }
 
-    const result = await withTimeout(
-      supabase.auth.signUp({ email, password }),
-      15000,
-      { data: { user: null, session: null }, error: { message: 'Sign-up timed out. Please check your connection and try again.', name: 'AuthTimeoutError', status: 408 } as unknown as AuthError },
-    );
-    const { error } = result;
+    let error: AuthError | null = null;
+
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      const result = await supabase.auth.signUp({ email, password });
+      error = result.error;
+
+      if (!error) {
+        break;
+      }
+
+      const message = `${error.message ?? ''}`.toLowerCase();
+      const isTransient =
+        message.includes('failed to fetch') ||
+        message.includes('network') ||
+        message.includes('timeout') ||
+        error.status === 408 ||
+        error.status === 425 ||
+        error.status === 429 ||
+        (typeof error.status === 'number' && error.status >= 500);
+
+      if (!isTransient || attempt === 2) {
+        break;
+      }
+
+      await delay(400 * attempt);
+    }
+
     const elapsed = Date.now() - startMs;
 
     if (error) {

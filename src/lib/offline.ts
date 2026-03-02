@@ -126,35 +126,65 @@ export const itemsCache = {
 let _effectivelyOnline = navigator.onLine;
 let _healthCheckTimer: ReturnType<typeof setInterval> | null = null;
 const _subscribers: Array<(online: boolean) => void> = [];
+let _consecutiveHealthFailures = 0;
 
-const HEALTH_CHECK_URL = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/`;
+const HEALTH_CHECK_URL = import.meta.env.PROD
+  ? '/supabase-rest/'
+  : `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/`;
 const HEALTH_CHECK_INTERVAL_MS = 30000; // Check every 30 seconds
-const HEALTH_CHECK_TIMEOUT_MS = 5000;   // Give up after 5 seconds
+const HEALTH_CHECK_TIMEOUT_MS = 8000;
+const HEALTH_CHECK_RETRIES = 2;
+const MAX_CONSECUTIVE_FAILURES_BEFORE_OFFLINE = 2;
 
-async function checkConnectivity(): Promise<boolean> {
+async function runConnectivityProbe(): Promise<boolean> {
   if (!navigator.onLine) return false; // Fast fail: radio is definitely off
 
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
 
-    // mode: 'no-cors' avoids CORS preflight; we only care if the network path works.
-    // The response is opaque (status 0) but fetch() only throws on actual network failure.
-    await fetch(HEALTH_CHECK_URL, {
+    // Any response (including 401/403) is enough to prove the network path is alive.
+    const response = await fetch(HEALTH_CHECK_URL, {
       method: 'HEAD',
-      mode: 'no-cors',
       cache: 'no-store',
       signal: controller.signal,
     });
 
     clearTimeout(timeoutId);
-    return true;
+
+    // Any HTTP response proves reachability/auth path is alive (401/403 is acceptable).
+    if (response.type === 'opaque') return true;
+    return response.status < 500;
   } catch {
     return false;
   }
 }
 
+async function checkConnectivity(): Promise<boolean> {
+  for (let attempt = 1; attempt <= HEALTH_CHECK_RETRIES; attempt += 1) {
+    const online = await runConnectivityProbe();
+    if (online) return true;
+
+    if (attempt < HEALTH_CHECK_RETRIES) {
+      await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+    }
+  }
+
+  return false;
+}
+
 function notifySubscribers(online: boolean): void {
+  if (online) {
+    _consecutiveHealthFailures = 0;
+  } else {
+    _consecutiveHealthFailures += 1;
+  }
+
+  // Guard against transient packet loss on mobile.
+  if (!online && _consecutiveHealthFailures < MAX_CONSECUTIVE_FAILURES_BEFORE_OFFLINE) {
+    return;
+  }
+
   if (online !== _effectivelyOnline) {
     _effectivelyOnline = online;
     _subscribers.forEach((cb) => cb(online));
