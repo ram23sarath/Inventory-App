@@ -29,8 +29,11 @@ let hasLoggedAdminNetworkIssue = false;
 
 const ADMIN_CACHE_PREFIX = 'inventory-admin:';
 
-/** Maximum ms to wait for any single auth operation before giving up. */
+/** Maximum ms to wait for any single admin/session operation before giving up. */
 const AUTH_TIMEOUT_MS = 8000;
+/** Bound each login/register request so blackholed packets do not stall forever. */
+const AUTH_REQUEST_TIMEOUT_MS = 12000;
+const AUTH_REQUEST_MAX_ATTEMPTS = 2;
 /** Global safety net: if isLoading is still true after this, force it false. */
 const LOADING_SAFETY_TIMEOUT_MS = 12000;
 
@@ -123,6 +126,28 @@ function isTransientAdminFetchError(error: unknown): boolean {
     maybeError?.status === 525
   );
 }
+
+function isTransientAuthError(error: AuthError): boolean {
+  const message = `${error.message ?? ''}`.toLowerCase();
+  return (
+    message.includes('failed to fetch') ||
+    message.includes('network') ||
+    message.includes('timeout') ||
+    error.status === 408 ||
+    error.status === 425 ||
+    error.status === 429 ||
+    (typeof error.status === 'number' && error.status >= 500)
+  );
+}
+
+function createAuthTimeoutError(action: 'Sign-in' | 'Sign-up'): AuthError {
+  return {
+    message: `${action} timed out. Please check your connection and try again.`,
+    name: 'AuthTimeoutError',
+    status: 408,
+  } as unknown as AuthError;
+}
+
 
 function getCachedAdminStatus(userId: string): boolean | null {
   try {
@@ -425,25 +450,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let error: AuthError | null = null;
 
-    for (let attempt = 1; attempt <= 2; attempt += 1) {
-      const result = await supabase.auth.signInWithPassword({ email, password });
+    for (let attempt = 1; attempt <= AUTH_REQUEST_MAX_ATTEMPTS; attempt += 1) {
+      const timeoutError = createAuthTimeoutError('Sign-in');
+      const result = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        AUTH_REQUEST_TIMEOUT_MS,
+        { data: { user: null, session: null }, error: timeoutError },
+      );
       error = result.error;
 
       if (!error) {
         break;
       }
 
-      const message = `${error.message ?? ''}`.toLowerCase();
-      const isTransient =
-        message.includes('failed to fetch') ||
-        message.includes('network') ||
-        message.includes('timeout') ||
-        error.status === 408 ||
-        error.status === 425 ||
-        error.status === 429 ||
-        (typeof error.status === 'number' && error.status >= 500);
-
-      if (!isTransient || attempt === 2) {
+      if (!isTransientAuthError(error) || attempt === AUTH_REQUEST_MAX_ATTEMPTS) {
         break;
       }
 
@@ -484,25 +504,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let error: AuthError | null = null;
 
-    for (let attempt = 1; attempt <= 2; attempt += 1) {
-      const result = await supabase.auth.signUp({ email, password });
+    for (let attempt = 1; attempt <= AUTH_REQUEST_MAX_ATTEMPTS; attempt += 1) {
+      const timeoutError = createAuthTimeoutError('Sign-up');
+      const result = await withTimeout(
+        supabase.auth.signUp({ email, password }),
+        AUTH_REQUEST_TIMEOUT_MS,
+        { data: { user: null, session: null }, error: timeoutError },
+      );
       error = result.error;
 
       if (!error) {
         break;
       }
 
-      const message = `${error.message ?? ''}`.toLowerCase();
-      const isTransient =
-        message.includes('failed to fetch') ||
-        message.includes('network') ||
-        message.includes('timeout') ||
-        error.status === 408 ||
-        error.status === 425 ||
-        error.status === 429 ||
-        (typeof error.status === 'number' && error.status >= 500);
-
-      if (!isTransient || attempt === 2) {
+      if (!isTransientAuthError(error) || attempt === AUTH_REQUEST_MAX_ATTEMPTS) {
         break;
       }
 
