@@ -86,6 +86,7 @@ export interface QueuedOperation {
   id: string;
   type: 'insert' | 'update' | 'delete';
   itemId?: string; // For update/delete operations
+  localItemId?: string; // Links queued insert → optimistic UI row by localId
   data?: Partial<Item>;
   timestamp: number;
   retryCount: number;

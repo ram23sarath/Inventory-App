@@ -51,6 +51,9 @@ export function useItems(): UseItemsReturn {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const activityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const syncRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  const isSyncingRef = useRef(false);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   let currentPollIntervalMs = 45000;
 
   // Fetch items from Supabase
@@ -107,6 +110,123 @@ export function useItems(): UseItemsReturn {
       setIsLoading(false);
     }
   }, [user]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
+
+  // Sync offline queue
+  const syncOfflineQueue = useCallback(async () => {
+    if (isSyncingRef.current) return;
+    if (!user || !(await networkStatus.checkNow())) return;
+
+    isSyncingRef.current = true;
+    try {
+      const queue = offlineQueue.getQueue();
+
+      for (const operation of queue) {
+        try {
+          await processOperation(operation, user.id);
+          offlineQueue.dequeue(operation.id);
+        } catch (e) {
+          console.error(`[sync] Failed operation ${operation.id} (type=${operation.type}, retry=${operation.retryCount}):`, e);
+          offlineQueue.incrementRetry(operation.id);
+
+          if (operation.retryCount >= 3) {
+            // Mark as error after 3 retries
+            setItems(prev =>
+              prev.map(item =>
+                item.localId === operation.localItemId || item.id === operation.itemId
+                  ? { ...item, syncStatus: 'error' as const }
+                  : item
+              )
+            );
+          } else {
+            // Schedule retry with exponential backoff + jitter
+            const baseDelay = Math.min(1000 * Math.pow(2, operation.retryCount), 30000);
+            const jitter = baseDelay * Math.random() * 0.25;
+            retryTimerRef.current = setTimeout(() => {
+              syncRef.current();
+            }, baseDelay + jitter);
+            break; // stop processing remaining queue; timer will resume
+          }
+        }
+      }
+
+      setPendingCount(offlineQueue.getPendingCount());
+      fetchItems();
+    } finally {
+      isSyncingRef.current = false;
+    }
+  }, [user, fetchItems]);
+
+  const processOperation = async (operation: QueuedOperation, userId: string) => {
+    switch (operation.type) {
+      case 'insert': {
+        const { error } = await (supabase.from('items').insert([
+          {
+            user_id: userId,
+            name: operation.data?.name || '',
+            price_cents: operation.data?.price_cents || 0,
+            section: operation.data?.section || 'income',
+            sub_section: operation.data?.sub_section || null,
+            item_date: operation.data?.item_date || new Date().toISOString().split('T')[0],
+          }
+        ]) as any);
+        if (error) throw error;
+        break;
+      }
+      case 'update': {
+        if (!operation.itemId) throw new Error('Missing item ID');
+        const { error } = await (supabase
+          .from('items')
+          .update({
+            name: operation.data?.name,
+            price_cents: operation.data?.price_cents,
+          }) as any)
+          .eq('id', operation.itemId);
+        if (error) throw error;
+        break;
+      }
+      case 'delete': {
+        if (!operation.itemId) throw new Error('Missing item ID');
+        const { error } = await supabase
+          .from('items')
+          .delete()
+          .eq('id', operation.itemId);
+        if (error) throw error;
+        break;
+      }
+    }
+  };
+
+  // Keep syncRef pointing at the latest syncOfflineQueue identity
+  useEffect(() => { syncRef.current = syncOfflineQueue; }, [syncOfflineQueue]);
+
+  // Network status monitoring — reads from ref to avoid stale closure
+  useEffect(() => {
+    const unsubscribe = networkStatus.subscribe((online) => {
+      setIsOnline(online);
+      if (online) {
+        syncRef.current();
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
+  // Drain queue immediately on startup / user-ready
+  useEffect(() => {
+    if (user && offlineQueue.hasPending()) {
+      syncRef.current();
+    }
+  }, [user]);
+
+  // Cleanup retry timer on unmount
+  useEffect(() => () => {
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+  }, []);
 
   // Subscribe to realtime updates (with polling fallback and exponential backoff reconnect)
   useEffect(() => {
@@ -305,95 +425,6 @@ export function useItems(): UseItemsReturn {
     };
   }, [user, fetchItems]);
 
-  // Initial fetch
-  useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
-
-  // Network status monitoring
-  useEffect(() => {
-    const unsubscribe = networkStatus.subscribe((online) => {
-      setIsOnline(online);
-      if (online) {
-        // Sync when coming back online
-        syncOfflineQueue();
-      }
-    });
-
-    return unsubscribe;
-  }, []);
-
-  // Sync offline queue
-  const syncOfflineQueue = useCallback(async () => {
-    if (!user || !(await networkStatus.checkNow())) return;
-
-    const queue = offlineQueue.getQueue();
-
-    for (const operation of queue) {
-      try {
-        await processOperation(operation, user.id);
-        offlineQueue.dequeue(operation.id);
-      } catch (e) {
-        console.error('Failed to sync operation:', e);
-        offlineQueue.incrementRetry(operation.id);
-
-        if (operation.retryCount >= 3) {
-          // Mark as error after 3 retries
-          setItems(prev =>
-            prev.map(item =>
-              item.localId === operation.id || item.id === operation.itemId
-                ? { ...item, syncStatus: 'error' as const }
-                : item
-            )
-          );
-        }
-      }
-    }
-
-    setPendingCount(offlineQueue.getPendingCount());
-    fetchItems();
-  }, [user, fetchItems]);
-
-  const processOperation = async (operation: QueuedOperation, userId: string) => {
-    switch (operation.type) {
-      case 'insert': {
-        const { error } = await (supabase.from('items').insert([
-          {
-            user_id: userId,
-            name: operation.data?.name || '',
-            price_cents: operation.data?.price_cents || 0,
-            section: operation.data?.section || 'income',
-            sub_section: operation.data?.sub_section || null,
-            item_date: operation.data?.item_date || new Date().toISOString().split('T')[0],
-          }
-        ]) as any);
-        if (error) throw error;
-        break;
-      }
-      case 'update': {
-        if (!operation.itemId) throw new Error('Missing item ID');
-        const { error } = await (supabase
-          .from('items')
-          .update({
-            name: operation.data?.name,
-            price_cents: operation.data?.price_cents,
-          }) as any)
-          .eq('id', operation.itemId);
-        if (error) throw error;
-        break;
-      }
-      case 'delete': {
-        if (!operation.itemId) throw new Error('Missing item ID');
-        const { error } = await supabase
-          .from('items')
-          .delete()
-          .eq('id', operation.itemId);
-        if (error) throw error;
-        break;
-      }
-    }
-  };
-
   // Add item
   const addItem = useCallback(async (name: string, priceCents: number, section: "income" | "expenses", itemDate: string, subSection: string | null = null) => {
     if (!user) return;
@@ -451,6 +482,7 @@ export function useItems(): UseItemsReturn {
         // Queue for later sync
         offlineQueue.enqueue({
           type: 'insert',
+          localItemId: localId,
           data: { name, price_cents: priceCents, section, sub_section: subSection, item_date: itemDate },
         });
 
@@ -469,6 +501,7 @@ export function useItems(): UseItemsReturn {
       // Queue for when online
       offlineQueue.enqueue({
         type: 'insert',
+        localItemId: localId,
         data: { name, price_cents: priceCents, section, sub_section: subSection, item_date: itemDate },
       });
       setPendingCount(offlineQueue.getPendingCount());
