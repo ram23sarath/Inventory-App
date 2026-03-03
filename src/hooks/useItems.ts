@@ -15,6 +15,27 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ]);
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isTransientRequestError(error: unknown): boolean {
+  const maybeError = error as { message?: string; code?: string; status?: number; details?: string };
+  const message = `${maybeError?.message ?? ''} ${maybeError?.details ?? ''}`.toLowerCase();
+  const status = maybeError?.status;
+
+  return (
+    message.includes('failed to fetch') ||
+    message.includes('networkerror') ||
+    message.includes('abort') ||
+    message.includes('timeout') ||
+    status === 408 ||
+    status === 425 ||
+    status === 429 ||
+    (typeof status === 'number' && status >= 500)
+  );
+}
+
 interface UseItemsReturn {
   items: ItemWithStatus[];
   isLoading: boolean;
@@ -54,24 +75,61 @@ export function useItems(): UseItemsReturn {
   const syncRef = useRef<() => Promise<void>>(() => Promise.resolve());
   const isSyncingRef = useRef(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hadSuccessfulServerFetchRef = useRef(false);
+  const userReadyAtRef = useRef<number>(0);
   let currentPollIntervalMs = 45000;
+
+  useEffect(() => {
+    if (!user) {
+      hadSuccessfulServerFetchRef.current = false;
+      userReadyAtRef.current = 0;
+      return;
+    }
+
+    userReadyAtRef.current = Date.now();
+  }, [user?.id]);
 
   // Fetch items from Supabase
   const fetchItems = useCallback(async () => {
     if (!user) return;
 
     try {
-      let query = supabase
-        .from('items')
-        .select('*')
-        .order('created_at', { ascending: false });
+      let lastFetchError: unknown = null;
+      let result: any = null;
+      const maxAttempts = 3;
 
-      if (!user.isAdmin) {
-        query = query.eq('user_id', user.id);
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+          let query = supabase
+            .from('items')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (!user.isAdmin) {
+            query = query.eq('user_id', user.id);
+          }
+
+          result = await withTimeout(query as any, 12000, `Items fetch attempt ${attempt}`) as any;
+
+          if (result?.error) throw result.error;
+          break;
+        } catch (fetchAttemptError) {
+          lastFetchError = fetchAttemptError;
+
+          if (attempt < maxAttempts && isTransientRequestError(fetchAttemptError)) {
+            const backoffMs = 350 * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 200);
+            await delay(backoffMs);
+            continue;
+          }
+
+          throw fetchAttemptError;
+        }
       }
 
-      // Wrap query with 15-second timeout (Android-friendly on slow networks)
-      const result = await withTimeout(query as any, 15000, 'Items fetch') as any;
+      if (!result) {
+        throw lastFetchError ?? new Error('Items fetch failed without response');
+      }
+
       const { data, error: fetchError } = result;
 
       if (fetchError) throw fetchError;
@@ -83,6 +141,7 @@ export function useItems(): UseItemsReturn {
 
       setItems(itemsWithStatus);
       itemsCache.save(data || []);
+      hadSuccessfulServerFetchRef.current = true;
       setError(null);
     } catch (e) {
       console.error('Failed to fetch items:', e);
@@ -90,18 +149,26 @@ export function useItems(): UseItemsReturn {
       // Try to load from cache
       const cached = itemsCache.get();
       const hasCachedItems = !!(cached && Array.isArray(cached.items) && cached.items.length > 0);
+      const withinWarmupWindow = userReadyAtRef.current > 0 && (Date.now() - userReadyAtRef.current) < 15000;
 
       if (hasCachedItems && cached) {
         setItems(cached.items.map((item) => ({
           ...(item as Item),
           syncStatus: 'synced' as const,
         })));
-        setError('Database fetch failed. Showing cached data.');
+
+        if (!hadSuccessfulServerFetchRef.current && isTransientRequestError(e) && withinWarmupWindow) {
+          setError('Connected, but inventory sync is still catching up. Retrying in background...');
+        } else {
+          setError('Database fetch failed. Showing cached data.');
+        }
       } else {
         setItems([]);
 
         if (isMissingRelationError(e, 'items')) {
           setError('Database table public.items is missing in the configured Supabase project. Run schema setup or switch to the correct project.');
+        } else if (!hadSuccessfulServerFetchRef.current && isTransientRequestError(e) && withinWarmupWindow) {
+          setError('Signed in successfully, but inventory data is taking longer to load. Retrying...');
         } else {
           setError('Failed to load items from database, and no cached data is available.');
         }
